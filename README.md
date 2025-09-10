@@ -61,7 +61,7 @@ NoteBot 是一个基于 Node.js 的现代化 QQ 机器人框架，支持 OneBot 
 #### 1. 克隆项目
 
 ```bash
-git clone https://github.com/your-username/notebot.git
+git clone https://github.com/inf-mc/NoteBot.git
 cd notebot
 ```
 
