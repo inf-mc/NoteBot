@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NoteBot 管理后台</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        .sidebar-transition {
+            transition: transform 0.3s ease-in-out;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 8px;
+        }
+        .status-online { background-color: #10b981; }
+        .status-offline { background-color: #ef4444; }
+        .status-warning { background-color: #f59e0b; }
+    </style>
+</head>
+<body class="bg-gray-100">
+    <!-- 侧边栏 -->
+    <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg sidebar-transition transform -translate-x-full lg:translate-x-0">
+        <div class="flex items-center justify-center h-16 bg-blue-600 text-white">
+            <i class="fas fa-robot mr-2"></i>
+            <h1 class="text-xl font-bold">NoteBot</h1>
+        </div>
+        
+        <nav class="mt-8">
+            <div class="px-4 space-y-2">
+                <a href="#" onclick="showPage('dashboard')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
+                    <i class="fas fa-tachometer-alt mr-3"></i>
+                    仪表板
+                </a>
+                <a href="#" onclick="showPage('plugins')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
+                    <i class="fas fa-puzzle-piece mr-3"></i>
+                    插件管理
+                </a>
+                <a href="#" onclick="showPage('tasks')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
+                    <i class="fas fa-clock mr-3"></i>
+                    定时任务
+                </a>
+                <a href="#" onclick="showPage('onebot')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
+                    <i class="fas fa-comments mr-3"></i>
+                    Onebot 连接
+                </a>
+                <a href="#" onclick="showPage('config')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
+                    <i class="fas fa-cog mr-3"></i>
+                    系统配置
+                </a>
+                <a href="#" onclick="showPage('logs')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
+                    <i class="fas fa-file-alt mr-3"></i>
+                    系统日志
+                </a>
+            </div>
+        </nav>
+        
+        <div class="absolute bottom-0 w-full p-4">
+            <button onclick="logout()" class="w-full flex items-center justify-center px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50">
+                <i class="fas fa-sign-out-alt mr-2"></i>
+                退出登录
+            </button>
+        </div>
+    </div>
+    
+    <!-- 主内容区域 -->
+    <div class="lg:ml-64">
+        <!-- 顶部导航栏 -->
+        <header class="bg-white shadow-sm border-b">
+            <div class="flex items-center justify-between px-6 py-4">
+                <div class="flex items-center">
+                    <button id="sidebar-toggle" class="lg:hidden text-gray-600 hover:text-gray-900">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                    <h2 id="page-title" class="ml-4 text-xl font-semibold text-gray-800">仪表板</h2>
+                </div>
+                
+                <div class="flex items-center space-x-4">
+                    <div class="flex items-center text-sm text-gray-600">
+                        <span class="status-dot status-online"></span>
+                        <span id="connection-status">系统正常</span>
+                    </div>
+                    <div class="flex items-center text-sm text-gray-600">
+                        <i class="fas fa-user-circle mr-2"></i>
+                        <span>管理员</span>
+                    </div>
+                </div>
+            </div>
+        </header>
+        
+        <!-- 页面内容 -->
+        <main class="p-6">
+            <!-- 仪表板页面 -->
+            <div id="dashboard-page" class="page-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <!-- 系统状态卡片 -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-blue-100 text-blue-600">
+                                <i class="fas fa-server text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-500">系统状态</h3>
+                                <p id="system-status" class="text-2xl font-semibold text-gray-900">正常</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 插件数量卡片 -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-green-100 text-green-600">
+                                <i class="fas fa-puzzle-piece text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-500">已加载插件</h3>
+                                <p id="plugin-count" class="text-2xl font-semibold text-gray-900">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 任务数量卡片 -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
+                                <i class="fas fa-clock text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-500">运行任务</h3>
+                                <p id="task-count" class="text-2xl font-semibold text-gray-900">0</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 连接数量卡片 -->
+                    <div class="bg-white rounded-lg shadow p-6">
+                        <div class="flex items-center">
+                            <div class="p-3 rounded-full bg-purple-100 text-purple-600">
+                                <i class="fas fa-link text-xl"></i>
+                            </div>
+                            <div class="ml-4">
+                                <h3 class="text-sm font-medium text-gray-500">活跃连接</h3>
+                                <p id="connection-count" class="text-2xl font-semibold text-gray-900">0</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 系统信息 -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-medium text-gray-900">系统信息</h3>
+                        </div>
+                        <div class="p-6">
+                            <dl class="space-y-4">
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-500">版本</dt>
+                                    <dd id="system-version" class="text-sm text-gray-900">1.0.0</dd>
+                                </div>
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-500">运行时间</dt>
+                                    <dd id="system-uptime" class="text-sm text-gray-900">0分钟</dd>
+                                </div>
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-500">内存使用</dt>
+                                    <dd id="memory-usage" class="text-sm text-gray-900">0 MB</dd>
+                                </div>
+                                <div class="flex justify-between">
+                                    <dt class="text-sm text-gray-500">Node.js 版本</dt>
+                                    <dd id="node-version" class="text-sm text-gray-900">-</dd>
+                                </div>
+                            </dl>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white rounded-lg shadow">
+                        <div class="p-6 border-b">
+                            <h3 class="text-lg font-medium text-gray-900">最近活动</h3>
+                        </div>
+                        <div class="p-6">
+                            <div id="recent-activities" class="space-y-3">
+                                <div class="flex items-center text-sm text-gray-600">
+                                    <i class="fas fa-circle text-green-500 mr-3" style="font-size: 6px;"></i>
+                                    系统启动完成
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 插件管理页面 -->
+            <div id="plugins-page" class="page-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900">插件管理</h3>
+                            <button onclick="refreshPlugins()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                <i class="fas fa-sync-alt mr-2"></i>
+                                刷新
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="plugins-list" class="space-y-4">
+                            <!-- 插件列表将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 定时任务页面 -->
+            <div id="tasks-page" class="page-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900">定时任务</h3>
+                            <button onclick="refreshTasks()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                <i class="fas fa-sync-alt mr-2"></i>
+                                刷新
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="tasks-list" class="space-y-4">
+                            <!-- 任务列表将在这里动态生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Onebot 连接页面 -->
+            <div id="onebot-page" class="page-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-medium text-gray-900">Onebot 连接状态</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="onebot-status" class="space-y-4">
+                            <!-- Onebot 状态将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 系统配置页面 -->
+            <div id="config-page" class="page-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <h3 class="text-lg font-medium text-gray-900">系统配置</h3>
+                    </div>
+                    <div class="p-6">
+                        <div id="config-form">
+                            <!-- 配置表单将在这里生成 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 系统日志页面 -->
+            <div id="logs-page" class="page-content hidden">
+                <div class="bg-white rounded-lg shadow">
+                    <div class="p-6 border-b">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-medium text-gray-900">系统日志</h3>
+                            <div class="flex space-x-2">
+                                <select id="log-level" class="px-3 py-2 border border-gray-300 rounded-lg">
+                                    <option value="info">信息</option>
+                                    <option value="warn">警告</option>
+                                    <option value="error">错误</option>
+                                    <option value="debug">调试</option>
+                                </select>
+                                <button onclick="refreshLogs()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    <i class="fas fa-sync-alt mr-2"></i>
+                                    刷新
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="p-6">
+                        <div id="logs-container" class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm h-96 overflow-y-auto">
+                            <!-- 日志内容将在这里显示 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- 登录模态框 -->
+    <div id="login-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-full max-w-md">
+            <div class="text-center mb-6">
+                <i class="fas fa-robot text-4xl text-blue-600 mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-900">NoteBot 管理后台</h2>
+                <p class="text-gray-600 mt-2">请登录以继续</p>
+            </div>
+            
+            <form id="login-form" onsubmit="login(event)">
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">用户名</label>
+                    <input type="text" id="username" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-2">密码</label>
+                    <input type="password" id="password" required class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    登录
+                </button>
+            </form>
+            
+            <div id="login-error" class="mt-4 text-red-600 text-sm text-center hidden"></div>
+        </div>
+    </div>
+    
+    <!-- 加载指示器 -->
+    <div id="loading" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-40 hidden">
+        <div class="bg-white rounded-lg p-6 flex items-center">
+            <i class="fas fa-spinner fa-spin text-blue-600 mr-3"></i>
+            <span>加载中...</span>
+        </div>
+    </div>
+    
+    <script src="app.js"></script>
+</body>
+</html>
