@@ -1,4 +1,4 @@
-# NoteBot - 智能QQ机器人框架
+# NoteBot - Minecraft X NTQQ机器人框架
 
 ![NoteBot Logo](https://img.shields.io/badge/NoteBot-v1.0.0-blue.svg)
 ![Node.js](https://img.shields.io/badge/Node.js-14%2B-green.svg)
