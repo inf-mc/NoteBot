@@ -328,13 +328,13 @@ class Application extends EventEmitter {
     async initializeWebServer() {
         // 创建Web服务器实例
         const WebServer = webServer;
-        const webInstance = new WebServer(
-            config.get('web'),
-            global.redisClient,
-            global.onebotCore,
-            global.pluginManager,
-            global.taskScheduler
-        );
+        const webInstance = new WebServer({
+            redisManager: global.redisClient,
+            onebotCore: global.onebotCore,
+            pluginManager: global.pluginManager,
+            taskScheduler: global.taskScheduler,
+            taskManager: global.taskManager
+        });
         
         // 启动Web服务器
         await webInstance.start();
@@ -482,13 +482,24 @@ class Application extends EventEmitter {
             logger.info('NoteBot application shutdown completed');
             this.emit('shutdown');
             
+            // 等待日志写入完成后再关闭
+            await new Promise(resolve => {
+                if (logger.end) {
+                    logger.end(() => {
+                        resolve();
+                    });
+                } else {
+                    setTimeout(resolve, 500);
+                }
+            });
+            
         } catch (error) {
-            logger.error('Error during shutdown:', error);
+            console.error('Error during shutdown:', error);
         } finally {
             // 强制退出
             setTimeout(() => {
                 process.exit(0);
-            }, 1000);
+            }, 2000);
         }
     }
 

@@ -373,14 +373,16 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // 优雅关闭
-process.on('SIGINT', () => {
-  logger.info('Received SIGINT, shutting down gracefully');
+const gracefulShutdown = (signal) => {
+  logger.info(`Received ${signal}, shutting down gracefully`);
+  logger.on('finish', () => {
+    process.exit(0);
+  });
   logger.end();
-});
+};
 
-process.on('SIGTERM', () => {
-  logger.info('Received SIGTERM, shutting down gracefully');
-  logger.end();
-});
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+
 
 module.exports = logger;

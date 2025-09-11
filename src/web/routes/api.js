@@ -37,7 +37,7 @@ function authenticateToken(req, res, next) {
         return res.status(401).json({ success: false, message: '访问令牌缺失' });
     }
     
-    jwt.verify(token, config.get('auth.jwtSecret'), (err, user) => {
+    jwt.verify(token, config.get('security.jwtSecret'), (err, user) => {
         if (err) {
             return res.status(403).json({ success: false, message: '访问令牌无效' });
         }
@@ -59,24 +59,21 @@ router.post('/auth/login', loginLimiter, async (req, res) => {
         }
         
         // 获取管理员凭据
-        const adminUsername = config.get('auth.adminUsername', 'admin');
-        const adminPassword = config.get('auth.adminPassword', 'admin123');
+        const adminUsername = process.env.ADMIN_USERNAME || 'admin';
+        const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
         
-        // 验证用户名
-        if (username !== adminUsername) {
-            logger.warn('登录失败：用户名错误', { username, ip: req.ip });
+        // 调试：检查config对象
+        console.log('Config object type:', typeof config);
+        console.log('Config get method:', typeof config.get);
+        console.log('Logger object type:', typeof logger);
+        console.log('Logger info method:', typeof logger.info);
+        
+        // 验证用户名和密码
+        if (username !== adminUsername || password !== adminPassword) {
+            logger.warn('登录失败', { username, ip: req.ip });
             return res.status(401).json({ 
                 success: false, 
-                message: '用户名或密码错误' 
-            });
-        }
-        
-        // 验证密码
-        const isValidPassword = await bcrypt.compare(password, adminPassword);
-        if (!isValidPassword) {
-            logger.warn('登录失败：密码错误', { username, ip: req.ip });
-            return res.status(401).json({ 
-                success: false, 
+                error: 'Login failed',
                 message: '用户名或密码错误' 
             });
         }
@@ -84,8 +81,8 @@ router.post('/auth/login', loginLimiter, async (req, res) => {
         // 生成JWT令牌
         const token = jwt.sign(
             { username, role: 'admin' },
-            config.get('auth.jwtSecret'),
-            { expiresIn: config.get('auth.tokenExpiry', '24h') }
+            config.get('security.jwtSecret'),
+            { expiresIn: config.get('security.jwtExpiration', '24h') }
         );
         
         logger.info('用户登录成功', { username, ip: req.ip });

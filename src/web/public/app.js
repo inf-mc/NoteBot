@@ -1,6 +1,5 @@
 // 全局变量
 let currentPage = 'dashboard';
-let authToken = localStorage.getItem('authToken');
 let wsConnection = null;
 let refreshInterval = null;
 
@@ -10,15 +9,8 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 // 初始化应用
-function initializeApp() {
-    // 检查登录状态
-    if (!authToken) {
-        showLoginModal();
-        return;
-    }
-    
-    // 隐藏登录模态框
-    hideLoginModal();
+async function initializeApp() {
+    // 服务器端已经处理认证，如果能访问到这个页面说明已登录
     
     // 初始化事件监听器
     initializeEventListeners();
@@ -66,58 +58,17 @@ function initializeEventListeners() {
     });
 }
 
-// 显示登录模态框
-function showLoginModal() {
-    document.getElementById('login-modal').classList.remove('hidden');
-}
-
-// 隐藏登录模态框
-function hideLoginModal() {
-    document.getElementById('login-modal').classList.add('hidden');
-}
-
-// 登录处理
-async function login(event) {
-    event.preventDefault();
-    
-    const username = document.getElementById('username').value;
-    const password = document.getElementById('password').value;
-    const errorDiv = document.getElementById('login-error');
-    
-    try {
-        showLoading();
-        
-        const response = await fetch('/api/auth/login', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ username, password })
-        });
-        
-        const data = await response.json();
-        
-        if (response.ok) {
-            authToken = data.token;
-            localStorage.setItem('authToken', authToken);
-            hideLoginModal();
-            initializeApp();
-        } else {
-            errorDiv.textContent = data.message || '登录失败';
-            errorDiv.classList.remove('hidden');
-        }
-    } catch (error) {
-        errorDiv.textContent = '网络错误，请重试';
-        errorDiv.classList.remove('hidden');
-    } finally {
-        hideLoading();
-    }
-}
-
 // 退出登录
-function logout() {
-    localStorage.removeItem('authToken');
-    authToken = null;
+async function logout() {
+    try {
+        // 调用服务器端登出API
+        await fetch('/api/auth/logout', {
+            method: 'POST',
+            credentials: 'include' // 包含cookies
+        });
+    } catch (error) {
+        console.error('登出请求失败:', error);
+    }
     
     // 断开WebSocket连接
     if (wsConnection) {
@@ -131,8 +82,8 @@ function logout() {
         refreshInterval = null;
     }
     
-    // 显示登录模态框
-    showLoginModal();
+    // 重定向到登录页面
+    window.location.href = '/login.html';
 }
 
 // 显示加载指示器
@@ -555,28 +506,42 @@ function renderLogs(logs) {
 async function apiRequest(url, options = {}) {
     const defaultOptions = {
         headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${authToken}`
-        }
+            'Content-Type': 'application/json'
+        },
+        credentials: 'include' // 自动包含cookies
     };
     
-    const response = await fetch(url, { ...defaultOptions, ...options });
-    
-    if (response.status === 401) {
-        // 未授权，重新登录
-        logout();
-        throw new Error('未授权');
+    const mergedOptions = { ...defaultOptions, ...options };
+    if (options.headers) {
+        mergedOptions.headers = { ...defaultOptions.headers, ...options.headers };
     }
     
-    return await response.json();
+    try {
+        const response = await fetch(url, mergedOptions);
+        
+        if (response.status === 401) {
+            // 未授权，服务器端会自动重定向，但以防万一
+            window.location.href = '/login.html';
+            throw new Error('未授权');
+        }
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        return await response.json();
+    } catch (error) {
+        if (error.message.includes('401') || error.message.includes('未授权')) {
+            window.location.href = '/login.html';
+        }
+        throw error;
+    }
 }
 
 // 建立WebSocket连接
 function connectWebSocket() {
-    if (!authToken) return;
-    
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws?token=${authToken}`;
+    const wsUrl = `${protocol}//${window.location.host}/ws`;
     
     wsConnection = new WebSocket(wsUrl);
     
@@ -594,15 +559,19 @@ function connectWebSocket() {
         }
     };
     
-    wsConnection.onclose = function() {
-        console.log('WebSocket 连接已关闭');
+    wsConnection.onclose = function(event) {
+        console.log('WebSocket 连接已关闭', event.code, event.reason);
         updateConnectionStatus(false);
+        
+        // 如果是认证失败，重定向到登录页
+        if (event.code === 1008 || event.code === 1011) {
+            window.location.href = '/login.html';
+            return;
+        }
         
         // 5秒后尝试重连
         setTimeout(() => {
-            if (authToken) {
-                connectWebSocket();
-            }
+            connectWebSocket();
         }, 5000);
     };
     

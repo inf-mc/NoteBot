@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 强制防缓存机制 -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>NoteBot 登录 - 管理后台</title>
+    <link href="./css/tailwind.min.css" rel="stylesheet">
+    <link href="./css/all.min.css" rel="stylesheet">
+    <style>
+        .login-container {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .login-card {
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+        .input-group {
+            position: relative;
+        }
+        .input-group input {
+            transition: all 0.3s ease;
+        }
+        .input-group input:focus {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
+        }
+        .btn-login {
+            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+            transition: all 0.3s ease;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.4);
+        }
+        .error-message {
+            animation: shake 0.5s ease-in-out;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-5px); }
+            75% { transform: translateX(5px); }
+        }
+        .loading-spinner {
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .fade-in {
+            animation: fadeIn 0.6s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="login-container flex items-center justify-center p-4">
+    <div class="login-card rounded-2xl p-8 w-full max-w-md fade-in">
+        <!-- Logo和标题 -->
+        <div class="text-center mb-8">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
+                <i class="fas fa-robot text-2xl text-white"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">NoteBot</h1>
+            <p class="text-gray-600">管理后台登录</p>
+        </div>
+
+        <!-- 登录表单 -->
+        <form id="loginForm" class="space-y-6">
+            <!-- 用户名输入 -->
+            <div class="input-group">
+                <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-user mr-2 text-blue-600"></i>
+                    用户名
+                </label>
+                <input 
+                    type="text" 
+                    id="username" 
+                    name="username"
+                    required 
+                    autocomplete="username"
+                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    placeholder="请输入用户名"
+                >
+                <div class="invalid-feedback text-red-500 text-sm mt-1 hidden" id="usernameError"></div>
+            </div>
+
+            <!-- 密码输入 -->
+            <div class="input-group">
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
+                    <i class="fas fa-lock mr-2 text-blue-600"></i>
+                    密码
+                </label>
+                <div class="relative">
+                    <input 
+                        type="password" 
+                        id="password" 
+                        name="password"
+                        required 
+                        autocomplete="current-password"
+                        class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="请输入密码"
+                    >
+                    <button 
+                        type="button" 
+                        id="togglePassword" 
+                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                        <i class="fas fa-eye" id="passwordIcon"></i>
+                    </button>
+                </div>
+                <div class="invalid-feedback text-red-500 text-sm mt-1 hidden" id="passwordError"></div>
+            </div>
+
+            <!-- 记住我 -->
+            <div class="flex items-center justify-between">
+                <label class="flex items-center">
+                    <input type="checkbox" id="rememberMe" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                    <span class="ml-2 text-sm text-gray-600">记住我</span>
+                </label>
+                <a href="#" class="text-sm text-blue-600 hover:text-blue-800">忘记密码？</a>
+            </div>
+
+            <!-- 错误消息 -->
+            <div id="errorMessage" class="error-message text-red-600 text-sm text-center hidden"></div>
+
+            <!-- 登录按钮 -->
+            <button 
+                type="submit" 
+                id="loginButton"
+                class="btn-login w-full text-white py-3 px-4 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            >
+                <span id="loginButtonText">
+                    <i class="fas fa-sign-in-alt mr-2"></i>
+                    登录
+                </span>
+                <span id="loginButtonLoading" class="hidden">
+                    <i class="fas fa-spinner loading-spinner mr-2"></i>
+                    登录中...
+                </span>
+            </button>
+        </form>
+
+        <!-- 底部信息 -->
+        <div class="mt-8 text-center">
+            <p class="text-xs text-gray-500">
+                © 2025 NoteBot
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // 立即清理URL中的敏感参数（在页面加载前执行）
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const sensitiveParams = ['username', 'password'];
+            let hasChanges = false;
+            
+            sensitiveParams.forEach(param => {
+                if (urlParams.has(param)) {
+                    urlParams.delete(param);
+                    hasChanges = true;
+                }
+            });
+            
+            // 如果有敏感参数，立即清理URL
+            if (hasChanges) {
+                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                window.history.replaceState({}, document.title, newUrl);
+            }
+        })();
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeLoginPage();
+        });
+        
+        function initializeLoginPage() {
+            // 首先检查登录状态
+            checkLoginStatus();
+            
+            // 绑定事件监听器
+            bindEventListeners();
+            
+            // 检查URL参数显示消息
+            checkUrlMessages();
+            
+            // 聚焦到用户名输入框
+            const usernameInput = document.getElementById('username');
+            if (usernameInput) {
+                usernameInput.focus();
+            }
+        }
+        
+        // 检查当前登录状态
+        async function checkLoginStatus() {
+            try {
+                console.log('检查当前登录状态...');
+                const response = await fetch('/api/auth/check', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.authenticated) {
+                        console.log('用户已登录，立即重定向到主页');
+                        
+                        // 隐藏登录表单
+                        const loginForm = document.getElementById('loginForm');
+                        if (loginForm) {
+                            loginForm.style.display = 'none';
+                        }
+                        
+                        // 显示重定向消息
+                        showMessage('您已登录，正在跳转到主页...', 'info');
+                        
+                        // 立即重定向
+                        setTimeout(() => {
+                            window.location.href = '/';
+                        }, 100);
+                        
+                        return true;
+                    }
+                }
+                
+                console.log('用户未登录，显示登录表单');
+                return false;
+            } catch (error) {
+                console.error('检查登录状态失败:', error);
+                return false;
+            }
+        }
+        
+        function checkUrlMessages() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const error = urlParams.get('error');
+            const message = urlParams.get('message');
+            
+            if (error) {
+                showMessage(decodeURIComponent(error), 'error');
+            }
+            
+            if (message) {
+                showMessage(decodeURIComponent(message), 'info');
+            }
+            
+            // 清除URL中的敏感参数（用户名、密码等）
+            const sensitiveParams = ['username', 'password', 'error', 'message'];
+            let hasChanges = false;
+            
+            sensitiveParams.forEach(param => {
+                if (urlParams.has(param)) {
+                    urlParams.delete(param);
+                    hasChanges = true;
+                }
+            });
+            
+            // 如果有敏感参数，清理URL
+            if (hasChanges) {
+                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+                window.history.replaceState({}, document.title, newUrl);
+            }
+        }
+        
+        function bindEventListeners() {
+            const loginForm = document.getElementById('loginForm');
+            if (loginForm) {
+                loginForm.addEventListener('submit', handleLogin);
+            }
+            
+            // 密码显示/隐藏切换
+            const togglePassword = document.getElementById('togglePassword');
+            if (togglePassword) {
+                togglePassword.addEventListener('click', togglePasswordVisibility);
+            }
+            
+            // 回车键登录
+            document.addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') {
+                    const activeElement = document.activeElement;
+                    if (activeElement && (activeElement.id === 'username' || activeElement.id === 'password')) {
+                        handleLogin(e);
+                    }
+                }
+            });
+            
+            // 输入框变化时清除错误状态
+            const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
+            inputs.forEach(input => {
+                input.addEventListener('input', clearErrorState);
+            });
+        }
+        
+        async function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value.trim();
+            const password = document.getElementById('password').value;
+            const rememberMe = document.getElementById('rememberMe').checked;
+            
+            // 表单验证
+            if (!validateForm(username, password)) {
+                return;
+            }
+            
+            // 显示加载状态
+            setLoadingState(true);
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password,
+                        rememberMe
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok && data.success) {
+                    // 登录成功，服务器已设置Cookie
+                    console.log('登录成功，token:', data.token);
+                    console.log('开始强制重定向流程');
+                    
+                    // 立即隐藏登录表单
+                    const loginForm = document.getElementById('loginForm');
+                    if (loginForm) {
+                        loginForm.style.display = 'none';
+                    }
+                    
+                    // 显示重定向消息
+                    showMessage('登录成功，正在跳转...', 'success');
+                    
+                    // 强制清除页面缓存
+                    if ('caches' in window) {
+                        caches.keys().then(names => {
+                            names.forEach(name => {
+                                caches.delete(name);
+                            });
+                        });
+                    }
+                    
+                    // 多重重定向策略
+                    const redirectToHome = () => {
+                        console.log('执行重定向到主页...');
+                        
+                        // 检查当前页面是否仍然是登录页
+                        if (window.location.pathname.includes('login')) {
+                            console.log('当前仍在登录页，强制跳转');
+                            
+                            // 尝试多种重定向方法
+                            const methods = [
+                                () => { window.location.href = '/'; },
+                                () => { window.location.replace('/'); },
+                                () => { window.location.assign('/'); },
+                                () => { window.location = '/'; },
+                                () => { window.open('/', '_self'); },
+                                () => { document.location.href = '/'; }
+                            ];
+                            
+                            let methodIndex = 0;
+                            const tryNextMethod = () => {
+                                if (methodIndex < methods.length) {
+                                    try {
+                                        console.log(`尝试重定向方法 ${methodIndex + 1}`);
+                                        methods[methodIndex]();
+                                        methodIndex++;
+                                        
+                                        // 如果500ms后还在登录页，尝试下一个方法
+                                        setTimeout(() => {
+                                            if (window.location.pathname.includes('login')) {
+                                                tryNextMethod();
+                                            }
+                                        }, 500);
+                                    } catch (error) {
+                                        console.error(`重定向方法 ${methodIndex + 1} 失败:`, error);
+                                        methodIndex++;
+                                        tryNextMethod();
+                                    }
+                                } else {
+                                    console.error('所有重定向方法都失败，尝试强制刷新');
+                                    window.location.reload(true);
+                                }
+                            };
+                            
+                            tryNextMethod();
+                        } else {
+                            console.log('已经不在登录页，重定向成功');
+                        }
+                    };
+                    
+                    // 立即执行第一次重定向
+                    redirectToHome();
+                    
+                    // 备用重定向（50ms后）
+                    setTimeout(redirectToHome, 50);
+                    
+                    // 最终备用重定向（200ms后）
+                    setTimeout(() => {
+                        if (window.location.pathname.includes('login')) {
+                            console.log('最终备用重定向执行');
+                            window.location.href = '/?t=' + Date.now();
+                        }
+                    }, 200);
+                } else {
+                    // 登录失败
+                    showMessage(data.message || '登录失败，请检查用户名和密码', 'error');
+                    setLoadingState(false);
+                    
+                    // 清空密码框
+                    document.getElementById('password').value = '';
+                    document.getElementById('password').focus();
+                }
+                
+            } catch (error) {
+                console.error('登录请求失败:', error);
+                showMessage('网络连接失败，请检查网络后重试', 'error');
+                setLoadingState(false);
+            }
+        }
+        
+        function validateForm(username, password) {
+            clearErrorState();
+            
+            let isValid = true;
+            
+            if (!username) {
+                showFieldError('username', '请输入用户名');
+                isValid = false;
+            }
+            
+            if (!password) {
+                showFieldError('password', '请输入密码');
+                isValid = false;
+            }
+            
+            return isValid;
+        }
+        
+        function showFieldError(fieldId, message) {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.classList.add('error');
+                
+                // 创建或更新错误消息
+                let errorElement = field.parentNode.querySelector('.field-error');
+                if (!errorElement) {
+                    errorElement = document.createElement('div');
+                    errorElement.className = 'field-error';
+                    field.parentNode.appendChild(errorElement);
+                }
+                errorElement.textContent = message;
+                
+                // 聚焦到错误字段
+                field.focus();
+            }
+        }
+        
+        function clearErrorState() {
+            // 清除输入框错误状态
+            const errorInputs = document.querySelectorAll('input.error');
+            errorInputs.forEach(input => {
+                input.classList.remove('error');
+            });
+            
+            // 清除错误消息
+            const errorMessages = document.querySelectorAll('.field-error');
+            errorMessages.forEach(msg => {
+                msg.remove();
+            });
+        }
+        
+        // 切换密码可见性
+        function togglePasswordVisibility() {
+            const passwordInput = document.getElementById('password');
+            const passwordIcon = document.getElementById('passwordIcon');
+
+            if (passwordInput.type === 'password') {
+                passwordInput.type = 'text';
+                passwordIcon.className = 'fas fa-eye-slash';
+            } else {
+                passwordInput.type = 'password';
+                passwordIcon.className = 'fas fa-eye';
+            }
+        }
+        
+        function setLoadingState(loading) {
+            const loginButton = document.getElementById('loginButton');
+            const loginButtonText = document.getElementById('loginButtonText');
+            const loginButtonLoading = document.getElementById('loginButtonLoading');
+            const inputs = document.querySelectorAll('input');
+            
+            if (loading) {
+                loginButton.disabled = true;
+                loginButtonText.classList.add('hidden');
+                loginButtonLoading.classList.remove('hidden');
+                inputs.forEach(input => input.disabled = true);
+            } else {
+                loginButton.disabled = false;
+                loginButtonText.classList.remove('hidden');
+                loginButtonLoading.classList.add('hidden');
+                inputs.forEach(input => input.disabled = false);
+            }
+        }
+        
+        function showMessage(message, type = 'info') {
+            // 移除现有消息
+            const existingMessage = document.querySelector('.message');
+            if (existingMessage) {
+                existingMessage.remove();
+            }
+            
+            // 创建新消息
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+            messageDiv.textContent = message;
+            
+            // 插入到表单前面
+            const form = document.getElementById('loginForm');
+            form.parentNode.insertBefore(messageDiv, form);
+            
+            // 自动隐藏成功和信息消息
+            if (type === 'success' || type === 'info') {
+                setTimeout(() => {
+                    if (messageDiv.parentNode) {
+                        messageDiv.remove();
+                    }
+                }, 5000);
+            }
+        }
+    </script>
+</body>
+</html>
