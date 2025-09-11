@@ -6,6 +6,7 @@ const helmet = require('helmet');
 const compression = require('compression');
 const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const EventEmitter = require('events');
@@ -26,8 +27,8 @@ class WebServer extends EventEmitter {
       host: config.get('web.host', '0.0.0.0'),
       staticPath: config.get('web.staticPath', path.join(__dirname, 'public')),
       apiPrefix: config.get('web.apiPrefix', '/api'),
-      jwtSecret: config.get('web.jwtSecret', 'your-secret-key'),
-      jwtExpiry: config.get('web.jwtExpiry', '24h'),
+      jwtSecret: config.get('security.jwtSecret', 'your-secret-key'),
+      jwtExpiry: config.get('security.jwtExpiration', '24h'),
       adminUser: config.get('web.adminUser', 'admin'),
       adminPassword: config.get('web.adminPassword', 'admin123'),
       corsOrigins: config.get('web.corsOrigins', ['http://localhost:3000']),
@@ -66,7 +67,7 @@ class WebServer extends EventEmitter {
         directives: {
           defaultSrc: ["'self'"],
           styleSrc: ["'self'", "'unsafe-inline'"],
-          scriptSrc: ["'self'"],
+          scriptSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: ["'self'", "data:", "https:"],
           connectSrc: ["'self'", "ws:", "wss:"]
         }
@@ -99,6 +100,18 @@ class WebServer extends EventEmitter {
     
     // 解析Cookie
     this.app.use(cookieParser());
+    
+    // 会话中间件
+    this.app.use(session({
+      secret: this.config.jwtSecret || 'notebot-session-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: false, // 在生产环境中应设为true（需要HTTPS）
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24小时
+      }
+    }));
     
     // 请求日志
     this.app.use((req, res, next) => {
@@ -225,6 +238,15 @@ class WebServer extends EventEmitter {
         uptime: process.uptime(),
         version: config.get('version', '1.0.0')
       });
+    });
+    
+    // CSRF令牌生成路由（无需认证）
+    this.app.get('/api/csrf-token', (req, res) => {
+      const token = require('crypto').randomBytes(32).toString('hex');
+      // 将CSRF令牌存储在会话中
+      req.session = req.session || {};
+      req.session.csrfToken = token;
+      res.json({ token });
     });
     
     // 认证相关路由（无需认证）
@@ -410,6 +432,17 @@ class WebServer extends EventEmitter {
     this.app.post(`${this.config.apiPrefix}/auth/login`, async (req, res) => {
       try {
         const { username, password, rememberMe } = req.body;
+        
+        // 验证CSRF令牌
+        const csrfToken = req.headers['x-csrf-token'];
+        if (!csrfToken || !req.session || req.session.csrfToken !== csrfToken) {
+          logger.warn('CSRF令牌验证失败', { ip: req.ip });
+          return res.status(403).json({
+            success: false,
+            error: 'CSRF token validation failed',
+            message: 'CSRF令牌验证失败，请刷新页面重试'
+          });
+        }
         
         if (!username || !password) {
           return res.status(400).json({

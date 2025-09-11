@@ -22,35 +22,37 @@ const logger = require('./utils/logger');
 
 // 全局错误处理
 process.on('uncaughtException', (error) => {
-  logger.error('Uncaught Exception:', error);
+  logger.error('NoteBot 未捕获异常:', error);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logger.error('NoteBot 未处理拒绝:', promise, '原因:', reason);
   process.exit(1);
 });
 
 // 优雅关闭处理
 process.on('SIGTERM', async () => {
-  logger.info('SIGTERM received, shutting down gracefully');
+  logger.info('NoteBot 收到 SIGTERM 信号，正在关闭...');
   await Application.shutdown();
+  logger.info('NoteBot 已关闭');
   process.exit(0);
 });
 
 process.on('SIGINT', async () => {
-  logger.info('SIGINT received, shutting down gracefully');
+  logger.info('NoteBot 收到 SIGINT 信号，正在关闭...');
   await Application.shutdown();
+  logger.info('NoteBot 已关闭');
   process.exit(0);
 });
 
 // 启动应用程序
 async function start() {
   try {
-    logger.info('Starting NoteBot application...');
-    logger.info(`Environment: ${process.env.NODE_ENV}`);
-    logger.info(`Node.js version: ${process.version}`);
-    logger.info(`Platform: ${process.platform}`);
+    logger.info('NoteBot 正在启动...');
+    logger.info(`环境: ${process.env.NODE_ENV}`);
+    logger.info(`Node.js 版本: ${process.version}`);
+    logger.info(`平台: ${process.platform}`);
     
     // 检查必要的目录
     const requiredDirs = [
@@ -70,11 +72,9 @@ async function start() {
     // 启动应用程序
     await Application.start();
     
-    logger.info('NoteBot application started successfully!');
-    logger.info('Press Ctrl+C to stop the application');
-    
+    logger.info('NoteBot 成功启动！');
   } catch (error) {
-    logger.error('Failed to start application:', error);
+    logger.error('NoteBot 启动失败:', error);
     process.exit(1);
   }
 }

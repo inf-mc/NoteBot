@@ -158,116 +158,138 @@
     </div>
 
     <script>
-        // 立即清理URL中的敏感参数（在页面加载前执行）
+        let csrfToken = null;
+        
+        // 获取CSRF令牌
+        async function getCsrfToken() {
+            try {
+                //console.log('🔑 [DEBUG] 开始获取CSRF令牌');
+                const response = await fetch('/api/csrf-token', {
+                    method: 'GET',
+                    credentials: 'include'
+                });
+                
+                //console.log('🔑 [DEBUG] CSRF令牌请求响应状态:', response.status);
+                //console.log('🔑 [DEBUG] CSRF令牌请求响应 OK:', response.ok);
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    csrfToken = data.token;
+                    //console.log('✅ [DEBUG] CSRF令牌获取成功:', csrfToken);
+                } else {
+                    console.warn('❌ [DEBUG] CSRF令牌获取失败，状态码:', response.status);
+                }
+            } catch (error) {
+                console.error('❌ [DEBUG] 获取CSRF令牌失败:', error);
+                //console.log('🔑 [DEBUG] CSRF错误详情:', error.message, error.stack);
+            }
+        }
+        
+        // 立即清理URL中的所有参数（安全措施）
+        //console.log('页面加载前执行清理URL参数');
         (function() {
             const urlParams = new URLSearchParams(window.location.search);
-            const sensitiveParams = ['username', 'password'];
-            let hasChanges = false;
             
-            sensitiveParams.forEach(param => {
-                if (urlParams.has(param)) {
-                    urlParams.delete(param);
-                    hasChanges = true;
-                }
-            });
-            
-            // 如果有敏感参数，立即清理URL
-            if (hasChanges) {
-                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
+            // 检查是否有任何URL参数
+            if (urlParams.toString()) {
+                console.warn('检测到URL参数，出于安全考虑将被清除');
+                // 清除所有URL参数
+                const newUrl = window.location.pathname;
                 window.history.replaceState({}, document.title, newUrl);
             }
         })();
         
         // 初始化
         document.addEventListener('DOMContentLoaded', function() {
+            //console.log('🚀 [DEBUG] DOM加载完成，开始初始化登录页面');
             initializeLoginPage();
         });
         
-        function initializeLoginPage() {
-            // 首先检查登录状态
-            checkLoginStatus();
+        async function initializeLoginPage() {
+            //console.log('🚀 [DEBUG] 初始化登录页面开始');
+            
+            // 获取CSRF令牌
+            //console.log('🚀 [DEBUG] 获取CSRF令牌...');
+            await getCsrfToken();
+            //console.log('🚀 [DEBUG] CSRF令牌获取完成:', csrfToken);
             
             // 绑定事件监听器
+            //console.log('🚀 [DEBUG] 绑定事件监听器...');
             bindEventListeners();
             
             // 检查URL参数显示消息
+            //console.log('🚀 [DEBUG] 检查URL消息...');
             checkUrlMessages();
             
             // 聚焦到用户名输入框
+            //console.log('🚀 [DEBUG] 设置焦点到用户名输入框...');
             const usernameInput = document.getElementById('username');
             if (usernameInput) {
                 usernameInput.focus();
+                //console.log('🚀 [DEBUG] 用户名输入框已获得焦点');
+            } else {
+                //console.log('❌ [DEBUG] 未找到用户名输入框');
             }
+            
+            //console.log('🚀 [DEBUG] 登录页面初始化完成');
         }
         
         // 检查当前登录状态
         async function checkLoginStatus() {
             try {
-                console.log('检查当前登录状态...');
+                //console.log('🔍 [DEBUG] 页面加载 - 开始检查当前登录状态');
+                //console.log('🔍 [DEBUG] 页面加载 - 当前Cookie:', document.cookie);
+                
                 const response = await fetch('/api/auth/check', {
                     method: 'GET',
                     credentials: 'include'
                 });
                 
+                //console.log('🔍 [DEBUG] 页面加载 - 认证检查响应状态:', response.status);
+                //console.log('🔍 [DEBUG] 页面加载 - 认证检查响应 OK:', response.ok);
+                
                 if (response.ok) {
                     const data = await response.json();
+                    //console.log('🔍 [DEBUG] 页面加载 - 认证检查响应数据:', data);
+                    
                     if (data.success && data.authenticated) {
-                        console.log('用户已登录，立即重定向到主页');
+                        //console.log('✅ [DEBUG] 页面加载 - 用户已登录，立即重定向到主页');
+                        //console.log('🔍 [DEBUG] 页面加载 - 用户信息:', data.user);
                         
-                        // 隐藏登录表单
-                        const loginForm = document.getElementById('loginForm');
-                        if (loginForm) {
-                            loginForm.style.display = 'none';
-                        }
-                        
-                        // 显示重定向消息
-                        showMessage('您已登录，正在跳转到主页...', 'info');
-                        
-                        // 立即重定向
-                        setTimeout(() => {
-                            window.location.href = '/';
-                        }, 100);
+                        // 立即重定向，不显示消息避免闪烁
+                        window.location.href = '/';
                         
                         return true;
+                    } else {
+                        //console.log('🔍 [DEBUG] 页面加载 - 认证检查失败 - success:', data.success, 'authenticated:', data.authenticated);
                     }
+                } else {
+                    //console.log('❌ [DEBUG] 页面加载 - 认证检查请求失败，状态码:', response.status);
                 }
                 
-                console.log('用户未登录，显示登录表单');
+                //console.log('🔍 [DEBUG] 页面加载 - 用户未登录，显示登录表单');
                 return false;
             } catch (error) {
-                console.error('检查登录状态失败:', error);
+                console.error('❌ [DEBUG] 页面加载 - 检查登录状态失败:', error);
+                //console.log('🔍 [DEBUG] 页面加载 - 错误详情:', error.message, error.stack);
                 return false;
             }
         }
         
         function checkUrlMessages() {
-            const urlParams = new URLSearchParams(window.location.search);
-            const error = urlParams.get('error');
-            const message = urlParams.get('message');
+            // 不再从URL参数获取消息，所有消息通过安全的方式传递
+            // 检查sessionStorage中是否有消息
+            const storedError = sessionStorage.getItem('loginError');
+            const storedMessage = sessionStorage.getItem('loginMessage');
             
-            if (error) {
-                showMessage(decodeURIComponent(error), 'error');
+            if (storedError) {
+                showMessage(storedError, 'error');
+                sessionStorage.removeItem('loginError');
             }
             
-            if (message) {
-                showMessage(decodeURIComponent(message), 'info');
-            }
-            
-            // 清除URL中的敏感参数（用户名、密码等）
-            const sensitiveParams = ['username', 'password', 'error', 'message'];
-            let hasChanges = false;
-            
-            sensitiveParams.forEach(param => {
-                if (urlParams.has(param)) {
-                    urlParams.delete(param);
-                    hasChanges = true;
-                }
-            });
-            
-            // 如果有敏感参数，清理URL
-            if (hasChanges) {
-                const newUrl = window.location.pathname + (urlParams.toString() ? '?' + urlParams.toString() : '');
-                window.history.replaceState({}, document.title, newUrl);
+            if (storedMessage) {
+                showMessage(storedMessage, 'info');
+                sessionStorage.removeItem('loginMessage');
             }
         }
         
@@ -307,8 +329,14 @@
             const password = document.getElementById('password').value;
             const rememberMe = document.getElementById('rememberMe').checked;
             
+            //console.log('🔐 [DEBUG] 开始登录流程');
+            //console.log('🔐 [DEBUG] 用户名:', username);
+            //console.log('🔐 [DEBUG] 记住我:', rememberMe);
+            //console.log('🔐 [DEBUG] CSRF Token:', csrfToken);
+            
             // 表单验证
             if (!validateForm(username, password)) {
+                //console.log('🔐 [DEBUG] 表单验证失败');
                 return;
             }
             
@@ -316,11 +344,22 @@
             setLoadingState(true);
             
             try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                // 添加CSRF令牌到请求头
+                if (csrfToken) {
+                    headers['X-CSRF-Token'] = csrfToken;
+                }
+                
+                //console.log('🔐 [DEBUG] 发送登录请求到 /api/auth/login');
+                //console.log('🔐 [DEBUG] 请求头:', headers);
+                
                 const response = await fetch('/api/auth/login', {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
+                    headers: headers,
+                    credentials: 'include',
                     body: JSON.stringify({
                         username,
                         password,
@@ -328,23 +367,29 @@
                     })
                 });
                 
+                //console.log('🔐 [DEBUG] 登录响应状态:', response.status);
+                //console.log('🔐 [DEBUG] 登录响应 OK:', response.ok);
+                
                 const data = await response.json();
+                //console.log('🔐 [DEBUG] 登录响应数据:', data);
                 
                 if (response.ok && data.success) {
-                    // 登录成功，服务器已设置Cookie
-                    console.log('登录成功，token:', data.token);
-                    console.log('开始强制重定向流程');
+                    // 登录成功
+                    //console.log('✅ [DEBUG] 登录成功，开始处理重定向流程');
                     
-                    // 立即隐藏登录表单
+                    // 检查Cookie是否设置
+                    //console.log('🔐 [DEBUG] 当前Cookie:', document.cookie);
+                    
+                    // 显示成功消息
+                    showMessage('登录成功，正在跳转...', 'success');
+                    
+                    // 隐藏登录表单
                     const loginForm = document.getElementById('loginForm');
                     if (loginForm) {
                         loginForm.style.display = 'none';
                     }
                     
-                    // 显示重定向消息
-                    showMessage('登录成功，正在跳转...', 'success');
-                    
-                    // 强制清除页面缓存
+                    // 清除页面缓存
                     if ('caches' in window) {
                         caches.keys().then(names => {
                             names.forEach(name => {
@@ -353,68 +398,13 @@
                         });
                     }
                     
-                    // 多重重定向策略
-                    const redirectToHome = () => {
-                        console.log('执行重定向到主页...');
-                        
-                        // 检查当前页面是否仍然是登录页
-                        if (window.location.pathname.includes('login')) {
-                            console.log('当前仍在登录页，强制跳转');
-                            
-                            // 尝试多种重定向方法
-                            const methods = [
-                                () => { window.location.href = '/'; },
-                                () => { window.location.replace('/'); },
-                                () => { window.location.assign('/'); },
-                                () => { window.location = '/'; },
-                                () => { window.open('/', '_self'); },
-                                () => { document.location.href = '/'; }
-                            ];
-                            
-                            let methodIndex = 0;
-                            const tryNextMethod = () => {
-                                if (methodIndex < methods.length) {
-                                    try {
-                                        console.log(`尝试重定向方法 ${methodIndex + 1}`);
-                                        methods[methodIndex]();
-                                        methodIndex++;
-                                        
-                                        // 如果500ms后还在登录页，尝试下一个方法
-                                        setTimeout(() => {
-                                            if (window.location.pathname.includes('login')) {
-                                                tryNextMethod();
-                                            }
-                                        }, 500);
-                                    } catch (error) {
-                                        console.error(`重定向方法 ${methodIndex + 1} 失败:`, error);
-                                        methodIndex++;
-                                        tryNextMethod();
-                                    }
-                                } else {
-                                    console.error('所有重定向方法都失败，尝试强制刷新');
-                                    window.location.reload(true);
-                                }
-                            };
-                            
-                            tryNextMethod();
-                        } else {
-                            console.log('已经不在登录页，重定向成功');
-                        }
-                    };
+                    //console.log('🔐 [DEBUG] 登录成功，等待1秒后重定向到主页');
                     
-                    // 立即执行第一次重定向
-                    redirectToHome();
-                    
-                    // 备用重定向（50ms后）
-                    setTimeout(redirectToHome, 50);
-                    
-                    // 最终备用重定向（200ms后）
-                    setTimeout(() => {
-                        if (window.location.pathname.includes('login')) {
-                            console.log('最终备用重定向执行');
-                            window.location.href = '/?t=' + Date.now();
-                        }
-                    }, 200);
+                    // 登录成功后直接重定向，不再进行额外的认证检查
+                     setTimeout(() => {
+                         //console.log('🔐 [DEBUG] 执行重定向到主页');
+                         window.location.href = '/';
+                     }, 1000); // 给Cookie设置足够时间
                 } else {
                     // 登录失败
                     showMessage(data.message || '登录失败，请检查用户名和密码', 'error');

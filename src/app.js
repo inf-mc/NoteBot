@@ -36,30 +36,30 @@ class Application extends EventEmitter {
     setupEventHandlers() {
         // 处理未捕获的异常
         process.on('uncaughtException', (error) => {
-            logger.error('Uncaught Exception:', error);
+            logger.error('NoteBot 未捕获异常:', error);
             this.handleCriticalError(error);
         });
 
         process.on('unhandledRejection', (reason, promise) => {
-            logger.error('Unhandled Rejection at:', promise, 'reason:', reason);
+            logger.error('NoteBot 未处理拒绝:', promise, '原因:', reason);
             this.handleCriticalError(reason);
         });
 
         // 处理进程信号
         process.on('SIGINT', () => {
-            logger.info('Received SIGINT, shutting down gracefully...');
+            logger.info('NoteBot 收到 SIGINT 信号，正在关闭...');
             this.shutdown();
         });
 
         process.on('SIGTERM', () => {
-            logger.info('Received SIGTERM, shutting down gracefully...');
+            logger.info('NoteBot 收到 SIGTERM 信号，正在关闭...');
             this.shutdown();
         });
 
         // Windows 特定信号
         if (process.platform === 'win32') {
             process.on('SIGBREAK', () => {
-                logger.info('Received SIGBREAK, shutting down gracefully...');
+                logger.info('NoteBot 收到 SIGBREAK 信号，正在关闭...');
                 this.shutdown();
             });
         }
@@ -70,17 +70,18 @@ class Application extends EventEmitter {
      */
     async start() {
         if (this.isRunning) {
-            logger.warn('Application is already running');
+            logger.warn('NoteBot 已在运行');
             return;
         }
 
         try {
             this.startupTime = Date.now();
-            logger.info('Starting NoteBot application...');
-            
-            // 启动组件的顺序很重要
+            logger.info('NoteBot 正在启动...');
+            // 加载配置
             await this.startComponent('config', this.initializeConfig.bind(this));
+            // 初始化 Redis
             await this.startComponent('redis', this.initializeRedis.bind(this));
+            // 初始化监控
             await this.startComponent('monitor', this.initializeMonitoring.bind(this));
             await this.startComponent('onebot', this.initializeOnebot.bind(this));
             await this.startComponent('plugins', this.initializePlugins.bind(this));
@@ -90,7 +91,7 @@ class Application extends EventEmitter {
             this.isRunning = true;
             
             const startupDuration = Date.now() - this.startupTime;
-            logger.info(`NoteBot application started successfully in ${startupDuration}ms`);
+            logger.info(`NoteBot 启动成功，耗时 ${startupDuration}ms`);
             
             this.emit('started', {
                 startupTime: this.startupTime,
@@ -104,7 +105,7 @@ class Application extends EventEmitter {
             }, 5000);
             
         } catch (error) {
-            logger.error('Failed to start application:', error);
+            logger.error('NoteBot 启动失败:', error);
             await this.shutdown();
             throw error;
         }
@@ -115,7 +116,7 @@ class Application extends EventEmitter {
      */
     async startComponent(name, initFunction) {
         try {
-            logger.info(`Starting component: ${name}`);
+            logger.info(`NoteBot 正在启动组件: ${name}`);
             const startTime = Date.now();
             
             const component = await initFunction();
@@ -128,12 +129,12 @@ class Application extends EventEmitter {
                 status: 'running'
             });
             
-            logger.info(`Component ${name} started in ${duration}ms`);
+            logger.info(`NoteBot 组件 ${name} 启动成功，耗时 ${duration}ms`);
             this.emit('componentStarted', { name, duration });
             
             return component;
         } catch (error) {
-            logger.error(`Failed to start component ${name}:`, error);
+            logger.error(`NoteBot 组件 ${name} 启动失败:`, error);
             this.components.set(name, {
                 instance: null,
                 startTime: Date.now(),
@@ -150,7 +151,7 @@ class Application extends EventEmitter {
      */
     async initializeConfig() {
         // 配置已经在模块加载时初始化
-        logger.info('Configuration loaded:', {
+        logger.info('NoteBot 配置加载成功:', {
             environment: config.getEnvironment(),
             nodeEnv: process.env.NODE_ENV || 'development'
         });
@@ -174,16 +175,16 @@ class Application extends EventEmitter {
         
         // 监听 Redis 事件
         redisInstance.on('error', (error) => {
-            logger.error('Redis error:', error);
+            logger.error('NoteBot Redis 连接错误:', error);
             this.emit('componentError', { name: 'redis', error });
         });
         
         redisInstance.on('connect', () => {
-            logger.info('Redis connected');
+            logger.info('NoteBot Redis 连接成功');
         });
         
         redisInstance.on('disconnect', () => {
-            logger.warn('Redis disconnected');
+            logger.warn('NoteBot Redis 断开连接');
         });
         
         return redisInstance;
@@ -211,12 +212,12 @@ class Application extends EventEmitter {
         
         // 监听监控事件
         systemMonitor.on('alert', (alert) => {
-            logger.warn('System alert:', alert);
+            logger.warn('NoteBot 系统警告:', alert);
             this.emit('systemAlert', alert);
         });
         
         logAnalyzer.on('alert', (alert) => {
-            logger.warn('Log analyzer alert:', alert);
+            logger.warn('NoteBot 日志分析器警告:', alert);
             this.emit('logAlert', alert);
         });
         
@@ -240,17 +241,17 @@ class Application extends EventEmitter {
         
         // 监听 Onebot 事件
         onebotInstance.on('connected', () => {
-            logger.info('Onebot connected');
+            logger.info('NoteBot Onebot 连接成功');
             this.emit('onebotConnected');
         });
         
         onebotInstance.on('disconnected', () => {
-            logger.warn('Onebot disconnected');
+            logger.warn('NoteBot Onebot 断开连接');
             this.emit('onebotDisconnected');
         });
         
         onebotInstance.on('error', (error) => {
-            logger.error('Onebot error:', error);
+            logger.error('NoteBot Onebot 连接错误:', error);
             this.emit('componentError', { name: 'onebot', error });
         });
         
@@ -275,15 +276,15 @@ class Application extends EventEmitter {
         
         // 监听插件事件
         pluginInstance.on('pluginLoaded', (plugin) => {
-            logger.info(`Plugin loaded: ${plugin.name}`);
+            logger.info(`NoteBot 插件加载成功: ${plugin.name}`);
         });
         
         pluginInstance.on('pluginUnloaded', (plugin) => {
-            logger.info(`Plugin unloaded: ${plugin.name}`);
+            logger.info(`NoteBot 插件卸载成功: ${plugin.name}`);
         });
         
         pluginInstance.on('error', (error) => {
-            logger.error('Plugin manager error:', error);
+            logger.error('NoteBot 插件管理器错误:', error);
             this.emit('componentError', { name: 'plugins', error });
         });
         
@@ -303,19 +304,19 @@ class Application extends EventEmitter {
         
         // 监听调度器事件
         schedulerInstance.on('taskStarted', (task) => {
-            logger.debug(`Task started: ${task.name}`);
+            logger.debug(`NoteBot 定时任务开始: ${task.name}`);
         });
         
         schedulerInstance.on('taskCompleted', (task) => {
-            logger.debug(`Task completed: ${task.name}`);
+            logger.debug(`NoteBot 定时任务完成: ${task.name}`);
         });
         
         schedulerInstance.on('taskFailed', (task, error) => {
-            logger.error(`Task failed: ${task.name}`, error);
+            logger.error(`NoteBot 定时任务失败: ${task.name}`, error);
         });
         
         schedulerInstance.on('error', (error) => {
-            logger.error('Task scheduler error:', error);
+            logger.error('NoteBot 定时任务调度器错误:', error);
             this.emit('componentError', { name: 'scheduler', error });
         });
         
@@ -344,11 +345,11 @@ class Application extends EventEmitter {
         
         // 监听 Web 服务器事件
         webInstance.on('started', (info) => {
-            logger.info(`Web server started on port ${info.port}`);
+            logger.info(`NoteBot Web 服务器启动成功，端口 ${info.port}`);
         });
         
         webInstance.on('error', (error) => {
-            logger.error('Web server error:', error);
+            logger.error('NoteBot Web 服务器错误:', error);
             this.emit('componentError', { name: 'web', error });
         });
         
@@ -417,15 +418,15 @@ class Application extends EventEmitter {
             this.emit('healthCheck', health);
             
             if (health.overall !== 'healthy') {
-                logger.warn('Health check detected issues:', health);
+                logger.warn('运行状况检查检测到问题:', health);
             } else {
-                logger.debug('Health check passed');
+                logger.debug('运行状况检查通过');
             }
             
             return health;
             
         } catch (error) {
-            logger.error('Health check failed:', error);
+            logger.error('运行状况检查失败:', error);
             return {
                 timestamp: Date.now(),
                 overall: 'error',
@@ -438,7 +439,7 @@ class Application extends EventEmitter {
      * 处理关键错误
      */
     async handleCriticalError(error) {
-        logger.error('Critical error detected, initiating emergency shutdown:', error);
+        logger.error('NoteBot 检测到关键错误，正在紧急关闭:', error);
         
         this.emit('criticalError', error);
         
@@ -455,14 +456,14 @@ class Application extends EventEmitter {
      */
     async shutdown() {
         if (this.shutdownInProgress) {
-            logger.warn('Shutdown already in progress');
+            logger.warn('NoteBot 关闭已在进行中');
             return;
         }
         
         this.shutdownInProgress = true;
         this.isRunning = false;
         
-        logger.info('Shutting down NoteBot application...');
+        logger.info('NoteBot 正在关闭...');
         
         try {
             // 按相反顺序关闭组件
@@ -479,7 +480,7 @@ class Application extends EventEmitter {
                 await this.shutdownComponent(componentName);
             }
             
-            logger.info('NoteBot application shutdown completed');
+            logger.info('NoteBot 关闭完成');
             this.emit('shutdown');
             
             // 等待日志写入完成后再关闭
@@ -494,7 +495,7 @@ class Application extends EventEmitter {
             });
             
         } catch (error) {
-            console.error('Error during shutdown:', error);
+            logger.error('NoteBot 关闭过程中出错:', error);
         } finally {
             // 强制退出
             setTimeout(() => {
@@ -513,7 +514,7 @@ class Application extends EventEmitter {
         }
         
         try {
-            logger.info(`Shutting down component: ${name}`);
+            logger.info(`NoteBot 正在关闭组件: ${name}`);
             
             switch (name) {
                 case 'web':
@@ -539,10 +540,10 @@ class Application extends EventEmitter {
             }
             
             component.status = 'stopped';
-            logger.info(`Component ${name} shut down successfully`);
+            logger.info(`NoteBot 组件 ${name} 关闭成功`);
             
         } catch (error) {
-            logger.error(`Error shutting down component ${name}:`, error);
+            logger.error(`NoteBot 关闭组件 ${name} 时出错:`, error);
             component.status = 'error';
         }
     }
@@ -551,7 +552,7 @@ class Application extends EventEmitter {
      * 重启应用程序
      */
     async restart() {
-        logger.info('Restarting NoteBot application...');
+        logger.info('NoteBot 正在重启...');
         
         await this.shutdown();
         
@@ -608,7 +609,7 @@ const app = new Application();
 // 如果直接运行此文件，启动应用程序
 if (require.main === module) {
     app.start().catch((error) => {
-        logger.error('Failed to start application:', error);
+        logger.error('NoteBot 启动失败:', error);
         process.exit(1);
     });
 }
