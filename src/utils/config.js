@@ -89,7 +89,7 @@ class ConfigManager {
         wsPort: parseInt(process.env.ONEBOT_WS_PORT) || 8080,
         accessToken: process.env.ONEBOT_ACCESS_TOKEN || '',
         secret: process.env.ONEBOT_SECRET || '',
-        heartbeatInterval: parseInt(process.env.ONEBOT_HEARTBEAT_INTERVAL) || 30000,
+  
         reconnectInterval: parseInt(process.env.ONEBOT_RECONNECT_INTERVAL) || 5000,
         maxReconnectAttempts: parseInt(process.env.ONEBOT_MAX_RECONNECT_ATTEMPTS) || 10
       },

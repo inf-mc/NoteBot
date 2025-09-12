@@ -4,311 +4,1804 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>NoteBot 管理后台</title>
-    <link href="./css/tailwind.min.css" rel="stylesheet">
-    <link href="./css/all.min.css" rel="stylesheet">
-    <style>
-        .sidebar-transition {
-            transition: transform 0.3s ease-in-out;
-        }
-        .fade-in {
-            animation: fadeIn 0.3s ease-in-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 8px;
-        }
-        .status-online { background-color: #10b981; }
-        .status-offline { background-color: #ef4444; }
-        .status-warning { background-color: #f59e0b; }
-    </style>
+    <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body class="bg-gray-100">
-    <!-- 侧边栏 -->
-    <div id="sidebar" class="fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg sidebar-transition transform -translate-x-full lg:translate-x-0">
-        <div class="flex items-center justify-center h-16 bg-blue-600 text-white">
-            <i class="fas fa-robot mr-2"></i>
-            <h1 class="text-xl font-bold">NoteBot</h1>
-        </div>
-        
-        <nav class="mt-8">
-            <div class="px-4 space-y-2">
-                <a href="#" onclick="showPage('dashboard')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-tachometer-alt mr-3"></i>
-                    仪表板
+<body>
+    <div class="app-layout">
+        <!-- 左侧导航栏 -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <a href="/webui" class="sidebar-brand">
+                    <span class="icon">
+                        <svg class="svg-icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="9" cy="9" r="1.5"/>
+                            <circle cx="15" cy="9" r="1.5"/>
+                            <path d="M8 13h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <span class="brand-text">NoteBot</span>
                 </a>
-                <a href="#" onclick="showPage('plugins')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-puzzle-piece mr-3"></i>
-                    插件管理
-                </a>
-                <a href="#" onclick="showPage('tasks')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-clock mr-3"></i>
-                    定时任务
-                </a>
-                <a href="#" onclick="showPage('onebot')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-comments mr-3"></i>
-                    Onebot 连接
-                </a>
-                <a href="#" onclick="showPage('config')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-cog mr-3"></i>
-                    系统配置
-                </a>
-                <a href="#" onclick="showPage('logs')" class="nav-item flex items-center px-4 py-2 text-gray-700 rounded-lg hover:bg-blue-50 hover:text-blue-600">
-                    <i class="fas fa-file-alt mr-3"></i>
-                    系统日志
-                </a>
+            </div>
+            
+            <div class="sidebar-nav">
+                <ul class="nav-list">
+                    <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="dashboard">
+                                <span class="nav-icon">
+                                    <svg class="svg-icon" viewBox="0 0 24 24">
+                                        <path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/>
+                                    </svg>
+                                </span>
+                                <span class="nav-text">基础信息</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="plugins">
+                                <span class="nav-icon">
+                                    <svg class="svg-icon" viewBox="0 0 24 24">
+                                        <path d="M20.5 6c-2.61.7-5.67 1-8.5 1s-5.89-.3-8.5-1L3 8c0 4.31 1.799 6.91 4.819 7.012C8.456 16.23 9.596 17 12 17s3.544-.77 4.181-1.988C19.201 14.91 21 12.31 21 8l-.5-2z"/>
+                                        <circle cx="12" cy="10" r="2"/>
+                                    </svg>
+                                </span>
+                                <span class="nav-text">插件管理</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-page="config">
+                                <span class="nav-icon">
+                                    <svg class="svg-icon" viewBox="0 0 24 24">
+                                        <path d="M12 15.5A3.5 3.5 0 0 1 8.5 12A3.5 3.5 0 0 1 12 8.5a3.5 3.5 0 0 1 3.5 3.5 3.5 3.5 0 0 1-3.5 3.5m7.43-2.53c.04-.32.07-.64.07-.97 0-.33-.03-.66-.07-1l2.11-1.63c.19-.15.24-.42.12-.64l-2-3.46c-.12-.22-.39-.31-.61-.22l-2.49 1c-.52-.39-1.06-.73-1.69-.98l-.37-2.65A.506.506 0 0 0 14 2h-4c-.25 0-.46.18-.5.42l-.37 2.65c-.63.25-1.17.59-1.69.98l-2.49-1c-.22-.09-.49 0-.61.22l-2 3.46c-.13.22-.07.49.12.64L4.57 11c-.04.34-.07.67-.07 1 0 .33.03.65.07.97l-2.11 1.66c-.19.15-.25.42-.12.64l2 3.46c.12.22.39.3.61.22l2.49-1.01c.52.4 1.06.74 1.69.99l.37 2.65c.04.24.25.42.5.42h4c.25 0 .46-.18.5-.42l.37-2.65c.63-.26 1.17-.59 1.69-.99l2.49 1.01c.22.08.49 0 .61-.22l2-3.46c.12-.22.07-.49-.12-.64l-2.11-1.66Z"/>
+                                    </svg>
+                                </span>
+                                <span class="nav-text">配置管理</span>
+                            </a>
+                        </li>
+                </ul>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <span class="user-name" id="user-name">管理员</span>
+                    <button class="btn btn-secondary btn-sm" onclick="logout()">退出</button>
+                </div>
             </div>
         </nav>
         
-        <div class="absolute bottom-0 w-full p-4">
-            <button onclick="logout()" class="w-full flex items-center justify-center px-4 py-2 text-red-600 border border-red-600 rounded-lg hover:bg-red-50">
-                <i class="fas fa-sign-out-alt mr-2"></i>
-                退出登录
-            </button>
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+        <!-- 基础信息页面 -->
+        <div id="dashboard-page" class="page-content active">
+            <!-- 左右分栏布局 -->
+            <div class="dashboard-layout">
+                <!-- 左侧栏：关键指标 -->
+                <div class="dashboard-left">
+                    <!-- 关键指标卡片 -->
+                    <div class="key-metrics">
+                        <div class="metric-card">
+                            <div class="metric-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <polyline points="12,6 12,12 16,14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
+                            <div class="metric-content">
+                                <div class="metric-value" id="uptime">-</div>
+                                <div class="metric-label">系统运行时长</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 系统信息模块 -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h3 class="card-title mb-0">系统信息</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="system-status-item">
+                                <span class="status-label">运行状态</span>
+                                <span class="status-value" id="status">运行中</span>
+                            </div>
+                            <div id="system-info" class="loading">
+                                <div class="spinner"></div>
+                                加载系统信息中...
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 右侧栏：系统资源监控 -->
+                <div class="dashboard-right">
+                    <!-- CPU监控 -->
+                    <div class="resource-monitor-card">
+                        <div class="resource-header">
+                            <div class="resource-icon cpu">
+                                <i class="fas fa-microchip"></i>
+                            </div>
+                            <h3>CPU</h3>
+                        </div>
+                        <div class="resource-content">
+                            <div class="resource-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">内核数</span>
+                                    <span class="detail-value" id="cpu-cores">-</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">主频</span>
+                                    <span class="detail-value" id="cpu-frequency">-GHz</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">使用率</span>
+                                    <span class="detail-value" id="cpu-usage-text">-%</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">主线程</span>
+                                    <span class="detail-value" id="cpu-main-thread">-%</span>
+                                </div>
+                            </div>
+                            <div class="resource-circle">
+                                <div class="circle-progress" id="cpu-circle">
+                                    <svg class="progress-ring" width="120" height="120">
+                                        <circle class="progress-ring-circle-bg" cx="60" cy="60" r="50"></circle>
+                                        <circle class="progress-ring-circle" cx="60" cy="60" r="50" id="cpu-progress-circle"></circle>
+                                    </svg>
+                                    <div class="circle-text">
+                                        <span class="circle-label">CPU占用</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 内存监控 -->
+                    <div class="resource-monitor-card">
+                        <div class="resource-header">
+                            <div class="resource-icon memory">
+                                <i class="fas fa-memory"></i>
+                            </div>
+                            <h3>内存</h3>
+                        </div>
+                        <div class="resource-content">
+                            <div class="resource-details">
+                                <div class="detail-item">
+                                    <span class="detail-label">总量</span>
+                                    <span class="detail-value" id="memory-total-text">-MB</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">使用率</span>
+                                    <span class="detail-value" id="memory-usage-text">-%</span>
+                                </div>
+                                <div class="detail-item">
+                                    <span class="detail-label">主线程</span>
+                                    <span class="detail-value" id="memory-main-thread">-MB</span>
+                                </div>
+                            </div>
+                            <div class="resource-circle">
+                                <div class="circle-progress" id="memory-circle">
+                                    <svg class="progress-ring" width="120" height="120">
+                                        <circle class="progress-ring-circle-bg" cx="60" cy="60" r="50"></circle>
+                                        <circle class="progress-ring-circle" cx="60" cy="60" r="50" id="memory-progress-circle"></circle>
+                                    </svg>
+                                    <div class="circle-text">
+                                        <span class="circle-label">内存占用</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 底部卡片区域 -->
+            <div class="dashboard-bottom">
+                <div class="bottom-cards-container">
+                    <!-- 插件安装数量卡片 -->
+                    <div class="bottom-card">
+                        <div class="card-icon">
+                            <svg class="svg-icon" viewBox="0 0 24 24">
+                                <path d="M20.5 6c-2.61.7-5.67 1-8.5 1s-5.89-.3-8.5-1L3 8c0 4.31 1.799 6.91 4.819 7.012C8.456 16.23 9.596 17 12 17s3.544-.77 4.181-1.988C19.201 14.91 21 12.31 21 8l-.5-2z"/>
+                                <circle cx="12" cy="10" r="2"/>
+                            </svg>
+                        </div>
+                        <div class="card-content">
+                            <div class="card-value" id="plugins-count-bottom">-</div>
+                            <div class="card-label">已安装插件</div>
+                        </div>
+                    </div>
+                    
+                    <!-- 预留其他卡片位置 -->
+                    <!-- 可在此处添加最多4个其他卡片 -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- 插件管理页面 -->
+        <div id="plugins-page" class="page-content">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title mb-0">插件管理</h3>
+                    <p class="card-subtitle">管理已安装的插件，查看插件状态和信息</p>
+                </div>
+                <div class="card-body">
+                    <div id="plugins-loading" class="loading">
+                        <div class="spinner"></div>
+                        加载插件列表中...
+                    </div>
+                    <div id="plugins-list" class="d-none"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 配置管理页面 -->
+        <div id="config-page" class="page-content">
+            <div id="config-message" class="d-none"></div>
+            
+            <!-- 页面标题 -->
+            <div class="page-header">
+                <h2 class="page-title">系统配置管理</h2>
+                <p class="page-subtitle">管理系统各项配置参数</p>
+            </div>
+            
+            <!-- 配置项分类展示 -->
+            <div id="config-categories" class="config-grid">
+                <!-- 服务器配置 -->
+                <div class="config-category" data-category="server">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h16v2H4z"/>
+                                    <rect x="2" y="3" width="20" height="18" rx="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">服务器配置</h3>
+                                <p class="config-subtitle">服务器运行相关配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="server-config"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 数据库配置 -->
+                <div class="config-category" data-category="database">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <ellipse cx="12" cy="5" rx="9" ry="3" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M3 5v14c0 1.66 4.03 3 9 3s9-1.34 9-3V5" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M3 12c0 1.66 4.03 3 9 3s9-1.34 9-3" fill="none" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">数据库配置</h3>
+                                <p class="config-subtitle">Redis数据库连接配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="database-config"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- OneBot配置 -->
+                <div class="config-category" data-category="onebot">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="9" cy="9" r="1.5"/>
+                                    <circle cx="15" cy="9" r="1.5"/>
+                                    <path d="M8 13h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">OneBot配置</h3>
+                                <p class="config-subtitle">机器人连接和通信配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="onebot-config"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 插件配置 -->
+                <div class="config-category" data-category="plugins">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <path d="M20.5 6c-2.61.7-5.67 1-8.5 1s-5.89-.3-8.5-1L3 8c0 4.31 1.799 6.91 4.819 7.012C8.456 16.23 9.596 17 12 17s3.544-.77 4.181-1.988C19.201 14.91 21 12.31 21 8l-.5-2z"/>
+                                    <circle cx="12" cy="10" r="2"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">插件配置</h3>
+                                <p class="config-subtitle">插件系统相关配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="plugins-config"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 安全配置 -->
+                <div class="config-category" data-category="security">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <circle cx="12" cy="16" r="1"/>
+                                    <path d="M7 11V7a5 5 0 0 1 10 0v4" fill="none" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">安全配置</h3>
+                                <p class="config-subtitle">身份验证和安全相关配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="security-config"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 日志配置 -->
+                <div class="config-category" data-category="logging">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" fill="none" stroke="currentColor" stroke-width="2"/>
+                                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" fill="none" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">日志配置</h3>
+                                <p class="config-subtitle">日志记录和存储配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="logging-config"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 监控配置 -->
+                <div class="config-category" data-category="monitoring">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <line x1="18" y1="20" x2="18" y2="10" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="12" y1="20" x2="12" y2="4" stroke="currentColor" stroke-width="2"/>
+                                    <line x1="6" y1="20" x2="6" y2="14" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">监控配置</h3>
+                                <p class="config-subtitle">系统监控和指标收集配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="monitoring-config"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 上传配置 -->
+                <div class="config-category" data-category="upload">
+                    <div class="config-card">
+                        <div class="config-card-header">
+                            <div class="config-icon">
+                                <svg class="svg-icon" viewBox="0 0 24 24">
+                                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" stroke-width="2"/>
+                                </svg>
+                            </div>
+                            <div class="config-title-group">
+                                <h3 class="config-title">上传配置</h3>
+                                <p class="config-subtitle">文件上传相关配置</p>
+                            </div>
+                        </div>
+                        <div class="config-card-body">
+                            <div class="config-items" id="upload-config"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- 修改密码模态框 -->
+    <div id="password-modal" class="modal-overlay d-none" onclick="hideChangePasswordModal()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <h4 class="modal-title">修改密码</h4>
+                <button class="btn-close" onclick="hideChangePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div id="password-message" class="d-none"></div>
+                <form id="password-form">
+                    <div class="form-group">
+                        <label for="old-password" class="form-label">当前密码</label>
+                        <input type="password" id="old-password" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="new-password" class="form-label">新密码</label>
+                        <input type="password" id="new-password" class="form-control" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="confirm-password" class="form-label">确认新密码</label>
+                        <input type="password" id="confirm-password" class="form-control" required>
+                    </div>
+                    <div class="d-flex justify-content-end" style="gap: 1rem;">
+                        <button type="button" class="btn btn-secondary" onclick="hideChangePasswordModal()">取消</button>
+                        <button type="submit" class="btn btn-primary">确认修改</button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
     
-    <!-- 主内容区域 -->
-    <div class="lg:ml-64">
-        <!-- 顶部导航栏 -->
-        <header class="bg-white shadow-sm border-b">
-            <div class="flex items-center justify-between px-6 py-4">
-                <div class="flex items-center">
-                    <button id="sidebar-toggle" class="lg:hidden text-gray-600 hover:text-gray-900">
-                        <i class="fas fa-bars text-xl"></i>
-                    </button>
-                    <h2 id="page-title" class="ml-4 text-xl font-semibold text-gray-800">仪表板</h2>
-                </div>
-                
-                <div class="flex items-center space-x-4">
-                    <div class="flex items-center text-sm text-gray-600">
-                        <span class="status-dot status-online"></span>
-                        <span id="connection-status">系统正常</span>
-                    </div>
-                    <div class="flex items-center text-sm text-gray-600">
-                        <i class="fas fa-user-circle mr-2"></i>
-                        <span>管理员</span>
-                    </div>
-                </div>
-            </div>
-        </header>
+    <style>
+        /* SVG图标样式 */
+        .svg-icon {
+            width: 1em;
+            height: 1em;
+            display: inline-block;
+            fill: currentColor;
+            vertical-align: middle;
+        }
         
-        <!-- 页面内容 -->
-        <main class="p-6">
-            <!-- 仪表板页面 -->
-            <div id="dashboard-page" class="page-content">
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                    <!-- 系统状态卡片 -->
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-blue-100 text-blue-600">
-                                <i class="fas fa-server text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-sm font-medium text-gray-500">系统状态</h3>
-                                <p id="system-status" class="text-2xl font-semibold text-gray-900">正常</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 插件数量卡片 -->
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-green-100 text-green-600">
-                                <i class="fas fa-puzzle-piece text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-sm font-medium text-gray-500">已加载插件</h3>
-                                <p id="plugin-count" class="text-2xl font-semibold text-gray-900">0</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 任务数量卡片 -->
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-yellow-100 text-yellow-600">
-                                <i class="fas fa-clock text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-sm font-medium text-gray-500">运行任务</h3>
-                                <p id="task-count" class="text-2xl font-semibold text-gray-900">0</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- 连接数量卡片 -->
-                    <div class="bg-white rounded-lg shadow p-6">
-                        <div class="flex items-center">
-                            <div class="p-3 rounded-full bg-purple-100 text-purple-600">
-                                <i class="fas fa-link text-xl"></i>
-                            </div>
-                            <div class="ml-4">
-                                <h3 class="text-sm font-medium text-gray-500">活跃连接</h3>
-                                <p id="connection-count" class="text-2xl font-semibold text-gray-900">0</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+        .nav-icon .svg-icon {
+            width: 20px;
+            height: 20px;
+        }
+        
+        .config-icon .svg-icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        .metric-icon .svg-icon {
+            width: 32px;
+            height: 32px;
+        }
+        
+        .card-icon .svg-icon {
+            width: 24px;
+            height: 24px;
+        }
+        
+        /* 页面内容切换 */
+        .page-content {
+            display: none;
+        }
+        
+        .page-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        
+        /* 插件卡片网格 */
+        .plugins-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .plugin-card {
+            background: var(--gray-50);
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 1.5rem;
+            transition: var(--transition-base);
+        }
+        
+        .plugin-card:hover {
+            border-color: var(--primary-color);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+        
+        .plugin-name {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: 0.5rem;
+            color: var(--text-primary);
+        }
+        
+        .plugin-version {
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+            margin-bottom: 0.5rem;
+        }
+        
+        .plugin-description {
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+            line-height: 1.5;
+        }
+        
+        .plugin-status {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: var(--border-radius-sm);
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-medium);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .status-enabled {
+            background: var(--success-light);
+            color: var(--success-dark);
+        }
+        
+        .status-disabled {
+            background: var(--danger-light);
+            color: var(--danger-dark);
+        }
+        
+        /* 模态框样式 */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-overlay);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: var(--z-modal);
+        }
+        
+        .modal-content {
+            background: var(--white);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow-xl);
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .modal-title {
+            margin: 0;
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-semibold);
+        }
+        
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            padding: 0;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .btn-close:hover {
+            color: var(--text-primary);
+        }
+        
+        .modal-body {
+            padding: var(--spacing-lg);
+        }
+        
+        /* 配置管理页面样式 */
+        .page-header {
+            text-align: center;
+            margin-bottom: var(--spacing-2xl);
+            padding: var(--spacing-xl) 0;
+        }
+        
+        .page-title {
+            font-size: var(--font-size-3xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-primary);
+            margin: 0 0 var(--spacing-sm) 0;
+            font-family: var(--font-family);
+        }
+        
+        .page-subtitle {
+            font-size: var(--font-size-lg);
+            color: var(--text-muted);
+            margin: 0;
+            font-family: var(--font-family);
+        }
+        
+        .config-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: var(--spacing-xl);
+            margin-bottom: var(--spacing-2xl);
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .config-card {
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            transition: var(--transition-base);
+            border: 1px solid var(--border-color);
+        }
+        
+        .config-card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-xl);
+        }
+        
+        .config-card-header {
+            padding: var(--spacing-lg);
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+        }
+        
+        .config-icon {
+            font-size: var(--font-size-2xl);
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: var(--gray-100);
+            border-radius: var(--border-radius);
+        }
+        
+        .config-title-group {
+            flex: 1;
+        }
+        
+        .config-title {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-primary);
+            margin: 0 0 var(--spacing-xs) 0;
+            font-family: var(--font-family);
+        }
+        
+        .config-subtitle {
+            font-size: var(--font-size-sm);
+            color: var(--text-muted);
+            margin: 0;
+            font-family: var(--font-family);
+        }
+        
+        .config-card-body {
+            padding: var(--spacing-lg);
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .config-grid {
+                grid-template-columns: 1fr;
+                gap: var(--spacing-lg);
+            }
+            
+            .page-title {
+                font-size: var(--font-size-2xl);
+            }
+            
+            .page-subtitle {
+                font-size: var(--font-size-base);
+            }
+            
+            .config-card-header {
+                padding: var(--spacing-md);
+                flex-direction: column;
+                text-align: center;
+                gap: var(--spacing-sm);
+            }
+            
+            .config-card-body {
+                padding: var(--spacing-md);
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .config-grid {
+                gap: var(--spacing-md);
+            }
+            
+            .config-icon {
+                width: 40px;
+                height: 40px;
+                font-size: var(--font-size-xl);
+            }
+            
+            .config-title {
+                font-size: var(--font-size-lg);
+            }
+        }
+        
+        .config-item {
+            padding: var(--spacing-lg) 0;
+            border-bottom: 1px solid var(--border-color);
+            transition: var(--transition-base);
+            font-family: var(--font-family);
+        }
+        
+        .config-item:last-child {
+            border-bottom: none;
+        }
+        
+        .config-item:hover {
+            background: var(--gray-50);
+        }
+        
+        .config-item-content {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-sm);
+        }
+        
+        .config-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .config-item .form-label {
+            font-weight: var(--font-weight-semibold);
+            margin-bottom: 0;
+            color: var(--text-primary);
+            font-size: var(--font-size-lg);
+            font-family: var(--font-family);
+            letter-spacing: 0.3px;
+            line-height: 1.4;
+        }
+        
+        .config-description {
+            color: var(--text-muted) !important;
+            font-size: var(--font-size-sm);
+            font-style: italic;
+            line-height: 1.5;
+            font-family: var(--font-family);
+            margin: 0;
+        }
+        
+        .config-input-wrapper {
+            margin-top: var(--spacing-xs);
+        }
+        
+        .config-item .form-control,
+        .config-item .form-select {
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-sm);
+            padding: var(--spacing-sm) var(--spacing-md);
+            transition: var(--transition-base);
+            background: var(--white);
+            font-family: var(--font-family);
+            font-size: var(--font-size-base);
+            line-height: 1.5;
+            color: var(--text-primary);
+            min-height: 48px;
+        }
+        
+        .config-item .form-control:focus,
+        .config-item .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+            background: var(--white);
+            transform: translateY(-2px);
+            outline: none;
+        }
+        
+        .config-item .form-check {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-md);
+            padding: var(--spacing-sm) 0;
+        }
+        
+        .config-item .form-check-input {
+            margin: 0;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--border-color);
+            border-radius: var(--border-radius-xs);
+            transition: var(--transition-base);
+        }
+        
+        .config-item .form-check-input:checked {
+            background-color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+        
+        .config-item .form-check-label {
+            font-family: var(--font-family);
+            font-size: var(--font-size-base);
+            color: var(--text-primary);
+            cursor: pointer;
+            user-select: none;
+        }
+        
+        .btn-save {
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            border: none;
+            border-radius: var(--border-radius-lg);
+            padding: var(--spacing-sm) var(--spacing-lg);
+            color: var(--white);
+            font-weight: var(--font-weight-semibold);
+            transition: var(--transition-base);
+            box-shadow: var(--shadow-md);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+            font-size: var(--font-size-sm);
+        }
+        
+        .btn-save::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
+            transition: left 0.5s;
+        }
+        
+        .btn-save:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: var(--shadow-lg);
+            background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+        }
+        
+        .btn-save:hover::before {
+            left: 100%;
+        }
+        
+        .btn-save:active {
+            transform: translateY(-1px) scale(1.02);
+        }
+        
+        .search-toolbar {
+            background: var(--white);
+            padding: var(--spacing-lg);
+            border-radius: var(--border-radius-sm);
+            margin-bottom: var(--spacing-lg);
+            border: 1px solid var(--border-color);
+        }
+        
+        .search-toolbar .form-control,
+        .search-toolbar .form-select {
+            border-radius: var(--border-radius-xs);
+        }
+        
+        .search-toolbar .btn {
+            border-radius: var(--border-radius-xs);
+            font-weight: var(--font-weight-medium);
+        }
+    </style>
+    
+    <script>
+        let currentUser = null;
+        let authToken = null;
+        let currentPage = 'dashboard';
+        
+        // 初始化
+        function init() {
+            authToken = localStorage.getItem('token');
+            const userStr = localStorage.getItem('user');
+            
+            if (!authToken || !userStr) {
+                window.location.href = '/login.html';
+                return;
+            }
+            
+            try {
+                currentUser = JSON.parse(userStr);
+                document.getElementById('user-name').textContent = currentUser.username;
+            } catch (error) {
+                logout();
+                return;
+            }
+            
+            // 验证token有效性
+            checkAuth();
+            
+            // 初始化页面路由
+            initRouter();
+            
+            // 加载数据
+            loadDashboard();
+            loadPlugins();
+            loadConfig();
+        }
+        
+        async function checkAuth() {
+            try {
+                const response = await fetch('/api/auth/check', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
                 
-                <!-- 系统信息 -->
-                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                    <div class="bg-white rounded-lg shadow">
-                        <div class="p-6 border-b">
-                            <h3 class="text-lg font-medium text-gray-900">系统信息</h3>
-                        </div>
-                        <div class="p-6">
-                            <dl class="space-y-4">
-                                <div class="flex justify-between">
-                                    <dt class="text-sm text-gray-500">版本</dt>
-                                    <dd id="system-version" class="text-sm text-gray-900">1.0.0</dd>
-                                </div>
-                                <div class="flex justify-between">
-                                    <dt class="text-sm text-gray-500">运行时间</dt>
-                                    <dd id="system-uptime" class="text-sm text-gray-900">0分钟</dd>
-                                </div>
-                                <div class="flex justify-between">
-                                    <dt class="text-sm text-gray-500">内存使用</dt>
-                                    <dd id="memory-usage" class="text-sm text-gray-900">0 MB</dd>
-                                </div>
-                                <div class="flex justify-between">
-                                    <dt class="text-sm text-gray-500">Node.js 版本</dt>
-                                    <dd id="node-version" class="text-sm text-gray-900">-</dd>
-                                </div>
-                            </dl>
-                        </div>
-                    </div>
+                if (!response.ok) {
+                    logout();
+                }
+            } catch (error) {
+                logout();
+            }
+        }
+        
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login.html';
+        }
+        
+        // 路由管理
+        function initRouter() {
+            // 处理导航链接点击
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const page = link.getAttribute('data-page');
+                    if (page) {
+                        navigateToPage(page);
+                    }
+                });
+            });
+            
+            // 根据URL路径显示对应页面
+            const path = window.location.pathname;
+            if (path === '/plugins') {
+                navigateToPage('plugins');
+            } else if (path === '/config') {
+                navigateToPage('config');
+            } else {
+                navigateToPage('dashboard');
+            }
+        }
+        
+        function navigateToPage(page) {
+            // 更新URL
+            const urls = {
+                'dashboard': '/webui',
+                'plugins': '/plugins',
+                'config': '/config'
+            };
+            
+            if (urls[page]) {
+                window.history.pushState({}, '', urls[page]);
+            }
+            
+            // 更新导航状态
+            document.querySelectorAll('.nav-link').forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('data-page') === page) {
+                    link.classList.add('active');
+                }
+            });
+            
+            // 显示对应页面
+            document.querySelectorAll('.page-content').forEach(content => {
+                content.classList.remove('active');
+            });
+            
+            const targetPage = document.getElementById(page + '-page');
+            if (targetPage) {
+                targetPage.classList.add('active');
+            }
+            
+            currentPage = page;
+        }
+        
+        // 系统资源监控数据存储
+        let lastCpuUsage = 0;
+        let lastMemoryUsage = 0;
+        
+        // 更新圆形进度条
+        function updateCircleProgress(circleId, percentage) {
+            const circle = document.getElementById(circleId);
+            if (circle) {
+                const circumference = 2 * Math.PI * 50; // r=50
+                const offset = circumference - (percentage / 100) * circumference;
+                circle.style.strokeDashoffset = offset;
+            }
+        }
+        
+        // 获取系统硬件信息（模拟数据）
+        function getSystemInfo() {
+            return {
+                cpu: {
+                    cores: navigator.hardwareConcurrency || 4,
+                    frequency: '2.4', // 模拟主频
+                    model: 'Intel Core i5' // 模拟CPU型号
+                },
+                memory: {
+                    total: 8192 // 模拟8GB内存
+                }
+            };
+        }
+        
+        // 绘制图表
+        function drawChart(ctx, data, color, width, height) {
+            ctx.clearRect(0, 0, width, height);
+            
+            // 设置样式
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            // 绘制网格线
+            ctx.strokeStyle = '#e5e7eb';
+            ctx.lineWidth = 1;
+            for (let i = 0; i <= 4; i++) {
+                const y = (height / 4) * i;
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(width, y);
+                ctx.stroke();
+            }
+            
+            // 绘制数据线
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            
+            const stepX = width / (data.length - 1);
+            
+            for (let i = 0; i < data.length; i++) {
+                const x = i * stepX;
+                const y = height - (data[i] / 100) * height;
+                
+                if (i === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            
+            ctx.stroke();
+            
+            // 绘制填充区域
+            ctx.globalAlpha = 0.1;
+            ctx.fillStyle = color;
+            ctx.lineTo(width, height);
+            ctx.lineTo(0, height);
+            ctx.closePath();
+            ctx.fill();
+            ctx.globalAlpha = 1;
+        }
+        
+        // 更新趋势显示
+        function updateTrend(elementId, current, previous) {
+            const element = document.getElementById(elementId);
+            const change = current - previous;
+            const changePercent = previous > 0 ? ((change / previous) * 100).toFixed(1) : 0;
+            
+            element.textContent = `${change >= 0 ? '+' : ''}${changePercent}%`;
+            element.className = 'trend-value';
+            
+            if (change > 0) {
+                element.classList.add('positive');
+            } else if (change < 0) {
+                element.classList.add('negative');
+            } else {
+                element.classList.add('neutral');
+            }
+        }
+        
+        async function loadDashboard() {
+            try {
+                const response = await fetch('/api/system/status', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    const status = data.data;
+                    const systemInfo = getSystemInfo();
                     
-                    <div class="bg-white rounded-lg shadow">
-                        <div class="p-6 border-b">
-                            <h3 class="text-lg font-medium text-gray-900">最近活动</h3>
-                        </div>
-                        <div class="p-6">
-                            <div id="recent-activities" class="space-y-3">
-                                <div class="flex items-center text-sm text-gray-600">
-                                    <i class="fas fa-circle text-green-500 mr-3" style="font-size: 6px;"></i>
-                                    系统启动完成
-                                </div>
+                    // 更新基本统计信息
+                    document.getElementById('uptime').textContent = formatUptime(status.server.uptime);
+                    
+                    // 计算CPU使用率（模拟数据，实际应从服务器获取）
+                    const cpuUsage = Math.random() * 30 + 10; // 模拟10-40%的CPU使用率
+                    const mainThreadCpu = Math.random() * 15 + 5; // 模拟主线程CPU使用率
+                    
+                    // 更新CPU信息
+                    document.getElementById('cpu-cores').textContent = systemInfo.cpu.cores;
+                    document.getElementById('cpu-frequency').textContent = systemInfo.cpu.frequency + 'GHz';
+                    document.getElementById('cpu-usage-text').textContent = cpuUsage.toFixed(1) + '%';
+                    document.getElementById('cpu-main-thread').textContent = mainThreadCpu.toFixed(1) + '%';
+                    
+                    // 更新CPU圆形进度条
+                    updateCircleProgress('cpu-progress-circle', cpuUsage);
+                    
+                    // 计算内存使用率
+                    const memoryUsed = status.server.memory.heapUsed;
+                    const memoryTotal = status.server.memory.heapTotal;
+                    const memoryUsage = (memoryUsed / memoryTotal) * 100;
+                    const systemMemoryTotal = systemInfo.memory.total;
+                    const mainThreadMemory = memoryUsed / (1024 * 1024); // 转换为MB
+                    
+                    // 更新内存信息
+                    document.getElementById('memory-total-text').textContent = systemMemoryTotal + 'MB';
+                    document.getElementById('memory-usage-text').textContent = memoryUsage.toFixed(1) + '%';
+                    document.getElementById('memory-main-thread').textContent = mainThreadMemory.toFixed(1) + 'MB';
+                    
+                    // 更新内存圆形进度条
+                    updateCircleProgress('memory-progress-circle', memoryUsage);
+                    
+                    lastCpuUsage = cpuUsage;
+                    lastMemoryUsage = memoryUsage;
+                    
+                    // 更新系统信息
+                    const systemInfoHtml = `
+                        <div class="row">
+                            <div class="col">
+                                <p><strong>Node.js版本:</strong> ${status.server.version}</p>
+                                <p><strong>平台:</strong> ${status.server.platform}</p>
+                                <p><strong>环境:</strong> ${status.config.environment}</p>
+                            </div>
+                            <div class="col">
+                                <p><strong>端口:</strong> ${status.config.port}</p>
+                                <p><strong>最后更新:</strong> ${new Date(status.timestamp).toLocaleString()}</p>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
+                    `;
+                    document.getElementById('system-info').innerHTML = systemInfoHtml;
+                }
+            } catch (error) {
+                console.error('加载基础信息数据失败:', error);
+                document.getElementById('system-info').innerHTML = '<p class="text-danger">加载系统信息失败</p>';
+            }
+        }
+        
+        async function loadPlugins() {
+            try {
+                const response = await fetch('/api/plugins', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    const plugins = data.data;
+                    
+                    // 更新插件数量
+                    document.getElementById('plugins-count-bottom').textContent = plugins.length;
+                    
+                    // 渲染插件列表
+                    const pluginsList = document.getElementById('plugins-list');
+                    pluginsList.innerHTML = '';
+                    
+                    if (plugins.length === 0) {
+                        pluginsList.innerHTML = '<p class="text-center text-muted">暂无已安装的插件</p>';
+                    } else {
+                        const pluginsGrid = document.createElement('div');
+                        pluginsGrid.className = 'plugins-grid';
+                        
+                        plugins.forEach(plugin => {
+                            const pluginCard = document.createElement('div');
+                            pluginCard.className = 'plugin-card';
+                            pluginCard.innerHTML = `
+                                <div class="plugin-name">${plugin.name || plugin.id}</div>
+                                <div class="plugin-version">版本: ${plugin.version || '未知'}</div>
+                                <div class="plugin-description">${plugin.description || '暂无描述'}</div>
+                                <span class="plugin-status ${plugin.enabled ? 'status-enabled' : 'status-disabled'}">
+                                    ${plugin.enabled ? '已启用' : '已禁用'}
+                                </span>
+                            `;
+                            pluginsGrid.appendChild(pluginCard);
+                        });
+                        
+                        pluginsList.appendChild(pluginsGrid);
+                    }
+                    
+                    document.getElementById('plugins-loading').classList.add('d-none');
+                    pluginsList.classList.remove('d-none');
+                }
+            } catch (error) {
+                console.error('加载插件列表失败:', error);
+                document.getElementById('plugins-loading').innerHTML = '<p class="text-danger">加载插件列表失败</p>';
+            }
+        }
+        
+        // 全局变量
+        let configCategories = {};
+        let filteredCategories = {};
+        
+        // 加载分类配置
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config/categories', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    configCategories = data.data;
+                    initializeConfigDisplay();
+                } else {
+                    showMessage('config-message', '加载配置失败: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                console.error('加载配置失败:', error);
+                showMessage('config-message', '加载配置失败', 'danger');
+            }
+        }
+        
+        // 渲染配置分类
+        function renderConfigCategories() {
+            Object.keys(configCategories).forEach(categoryKey => {
+                const categoryContainer = document.getElementById(`${categoryKey}-config`);
+                if (categoryContainer) {
+                    const category = configCategories[categoryKey];
+                    if (categoryKey === 'onebot') {
+                        categoryContainer.innerHTML = renderOnebotConfig(category.items || {});
+                    } else {
+                        categoryContainer.innerHTML = renderCategoryItems(category.items || {});
+                    }
+                }
+            });
+        }
+        
+        // 渲染OneBot配置项目
+        function renderOnebotConfig(items) {
+            let html = '';
             
-            <!-- 插件管理页面 -->
-            <div id="plugins-page" class="page-content hidden">
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-6 border-b">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-medium text-gray-900">插件管理</h3>
-                            <button onclick="refreshPlugins()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                <i class="fas fa-sync-alt mr-2"></i>
-                                刷新
-                            </button>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <div id="plugins-list" class="space-y-4">
-                            <!-- 插件列表将在这里动态生成 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
+            // 基础配置项（始终显示）
+            const baseItems = ['onebot.mode'];
             
-            <!-- 定时任务页面 -->
-            <div id="tasks-page" class="page-content hidden">
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-6 border-b">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-medium text-gray-900">定时任务</h3>
-                            <button onclick="refreshTasks()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                <i class="fas fa-sync-alt mr-2"></i>
-                                刷新
-                            </button>
-                        </div>
-                    </div>
-                    <div class="p-6">
-                        <div id="tasks-list" class="space-y-4">
-                            <!-- 任务列表将在这里动态生成 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
+            // 连接模式配置映射
+            const modeItems = {
+                'reverse_ws': [
+                    'onebot.connections.reverse_ws.enabled', 
+                    'onebot.connections.reverse_ws.port', 
+                    'onebot.connections.reverse_ws.path',
+                    'onebot.connections.reverse_ws.accessToken',
+                    'onebot.connections.reverse_ws.heartbeatInterval',
+                    'onebot.connections.reverse_ws.maxConnections'
+                ],
+                'forward_ws': [
+                    'onebot.connections.forward_ws.enabled', 
+                    'onebot.connections.forward_ws.url', 
+                    'onebot.connections.forward_ws.accessToken',
+                    'onebot.connections.forward_ws.heartbeatInterval',
+                    'onebot.connections.forward_ws.reconnectInterval',
+                    'onebot.connections.forward_ws.maxReconnectAttempts',
+                    'onebot.connections.forward_ws.connectionTimeout'
+                ],
+                'http_post': [
+                    'onebot.connections.http_post.enabled', 
+                    'onebot.connections.http_post.url', 
+                    'onebot.connections.http_post.accessToken',
+                    'onebot.connections.http_post.timeout',
+                    'onebot.connections.http_post.retryAttempts',
+                    'onebot.connections.http_post.retryInterval'
+                ],
+                'http_api': [
+                    'onebot.connections.http_api.enabled', 
+                    'onebot.connections.http_api.host', 
+                    'onebot.connections.http_api.port',
+                    'onebot.connections.http_api.accessToken',
+                    'onebot.connections.http_api.timeout',
+                    'onebot.connections.http_api.maxConnections'
+                ]
+            };
             
-            <!-- Onebot 连接页面 -->
-            <div id="onebot-page" class="page-content hidden">
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-6 border-b">
-                        <h3 class="text-lg font-medium text-gray-900">Onebot 连接状态</h3>
-                    </div>
-                    <div class="p-6">
-                        <div id="onebot-status" class="space-y-4">
-                            <!-- Onebot 状态将在这里显示 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
+            // 获取当前选择的模式
+            const currentMode = items['onebot.mode']?.value || 'reverse_ws';
             
-            <!-- 系统配置页面 -->
-            <div id="config-page" class="page-content hidden">
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-6 border-b">
-                        <h3 class="text-lg font-medium text-gray-900">系统配置</h3>
-                    </div>
-                    <div class="p-6">
-                        <div id="config-form">
-                            <!-- 配置表单将在这里生成 -->
-                        </div>
-                    </div>
-                </div>
-            </div>
+            // 渲染基础配置项
+            baseItems.forEach(itemKey => {
+                if (items[itemKey]) {
+                    html += renderConfigItem(itemKey, items[itemKey]);
+                }
+            });
             
-            <!-- 系统日志页面 -->
-            <div id="logs-page" class="page-content hidden">
-                <div class="bg-white rounded-lg shadow">
-                    <div class="p-6 border-b">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-lg font-medium text-gray-900">系统日志</h3>
-                            <div class="flex space-x-2">
-                                <select id="log-level" class="px-3 py-2 border border-gray-300 rounded-lg">
-                                    <option value="info">信息</option>
-                                    <option value="warn">警告</option>
-                                    <option value="error">错误</option>
-                                    <option value="debug">调试</option>
-                                </select>
-                                <button onclick="refreshLogs()" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                    <i class="fas fa-sync-alt mr-2"></i>
-                                    刷新
-                                </button>
-                            </div>
-                        </div>
+            // 添加连接状态显示
+            html += renderConnectionStatus();
+            
+            // 添加模式分隔线
+            html += `<div class="mt-4 mb-3"><h6 class="text-muted border-bottom pb-2">连接模式配置</h6></div>`;
+            
+            // 渲染当前模式的配置项
+            if (modeItems[currentMode]) {
+                modeItems[currentMode].forEach(itemKey => {
+                    if (items[itemKey]) {
+                        html += renderConfigItem(itemKey, items[itemKey]);
+                    }
+                });
+            }
+            
+            return html;
+        }
+        
+        // 渲染单个配置项
+        function renderConfigItem(itemKey, item) {
+            return `
+                <div class="form-group mb-3" data-key="${itemKey}">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label class="form-label mb-0">${item.label}</label>
+                        <button class="btn btn-sm btn-primary btn-save" onclick="saveConfigItem('${itemKey}')" style="display: none;">保存</button>
                     </div>
-                    <div class="p-6">
-                        <div id="logs-container" class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm h-96 overflow-y-auto">
-                            <!-- 日志内容将在这里显示 -->
-                        </div>
-                    </div>
+                    <small class="text-muted d-block mb-2">${item.description}</small>
+                    ${renderItemControl(itemKey, item)}
                 </div>
-            </div>
+            `;
+        }
+        
+        // 渲染分类项目
+        function renderCategoryItems(items) {
+            let html = '';
+            for (const [itemKey, item] of Object.entries(items)) {
+                html += renderConfigItem(itemKey, item);
+            }
+            return html;
+        }
+        
+        // 渲染控件
+        function renderItemControl(key, item) {
+            const value = item.value !== undefined ? item.value : '';
+            
+            switch (item.type) {
+                case 'boolean':
+                    return `<div class="form-check"><input type="checkbox" class="form-check-input" id="${key}" ${value ? 'checked' : ''} onchange="onItemChange('${key}')"/><label class="form-check-label" for="${key}">启用</label></div>`;
+                case 'number':
+                    return `<input type="number" class="form-control" id="${key}" value="${value}" onchange="onItemChange('${key}')"/>`;
+                case 'select':
+                    const options = item.options.map(opt => 
+                        `<option value="${opt}" ${value === opt ? 'selected' : ''}>${opt}</option>`
+                    ).join('');
+                    return `<select class="form-select" id="${key}" onchange="onItemChange('${key}')">${options}</select>`;
+                default:
+                    return `<input type="text" class="form-control" id="${key}" value="${value}" onchange="onItemChange('${key}')"/>`;
+            }
+        }
+        
+        // 渲染连接状态显示
+        function renderConnectionStatus() {
+            return `
+                <div class="alert alert-info mt-3 mb-3">
+                    <h6 class="mb-2"><i class="fas fa-info-circle"></i> 连接状态</h6>
+                    <div id="connection-status">正在检查连接状态...</div>
+                    <small class="text-muted">注意：每次只能启用一个连接类型，启用新连接将自动禁用其他连接。</small>
+                </div>
+            `;
+        }
+        
+        // 配置项变化处理
+        function onItemChange(key) {
+            const saveBtn = document.querySelector(`[data-key="${key}"] .btn-save`);
+            if (saveBtn) {
+                saveBtn.style.display = 'inline-block';
+            }
+            
+            // 如果是连接启用状态改变，实现连接互斥
+            if (key.includes('.enabled') && key.includes('onebot.connections.')) {
+                const element = document.getElementById(key);
+                if (element && element.checked) {
+                    handleConnectionMutex(key);
+                    
+                    // 自动更新mode配置为当前启用的连接类型
+                    const connectionType = key.split('.')[2]; // 获取连接类型
+                    const modeSelect = document.getElementById('onebot.mode');
+                    if (modeSelect && modeSelect.value !== connectionType) {
+                        modeSelect.value = connectionType;
+                        // 自动保存mode配置到后端
+                        saveConfigItem('onebot.mode', connectionType);
+                    }
+                }
+            }
+            
+            // 如果是OneBot模式改变，重新渲染配置页面
+            if (key === 'onebot.mode') {
+                const modeSelect = document.getElementById(key);
+                if (modeSelect && configCategories.onebot) {
+                    // 更新配置数据中的模式值
+                    configCategories.onebot.items[key].value = modeSelect.value;
+                    
+                    // 重新渲染OneBot配置
+                    const categoryContainer = document.getElementById('onebot-config');
+                    if (categoryContainer) {
+                        categoryContainer.innerHTML = renderOnebotConfig(configCategories.onebot.items || {});
+                        updateConnectionStatus();
+                    }
+                }
+            }
+        }
+        
+        // 处理连接互斥逻辑
+        function handleConnectionMutex(enabledKey) {
+            const connectionTypes = ['reverse_ws', 'forward_ws', 'http_post', 'http_api'];
+            const currentType = enabledKey.split('.')[2]; // 获取连接类型
+            
+            // 禁用其他连接类型
+            connectionTypes.forEach(type => {
+                if (type !== currentType) {
+                    const otherKey = `onebot.connections.${type}.enabled`;
+                    const otherElement = document.getElementById(otherKey);
+                    if (otherElement && otherElement.checked) {
+                        otherElement.checked = false;
+                        // 显示保存按钮
+                        const saveBtn = document.querySelector(`[data-key="${otherKey}"] .btn-save`);
+                        if (saveBtn) {
+                            saveBtn.style.display = 'inline-block';
+                        }
+                    }
+                }
+            });
+            
+            updateConnectionStatus();
+        }
+        
+        // 更新连接状态显示
+        function updateConnectionStatus() {
+            const statusDiv = document.getElementById('connection-status');
+            if (!statusDiv) return;
+            
+            const connectionTypes = ['reverse_ws', 'forward_ws', 'http_post', 'http_api'];
+            const enabledConnections = [];
+            
+            connectionTypes.forEach(type => {
+                const key = `onebot.connections.${type}.enabled`;
+                const element = document.getElementById(key);
+                if (element && element.checked) {
+                    const typeNames = {
+                        'reverse_ws': '反向WebSocket',
+                        'forward_ws': '正向WebSocket', 
+                        'http_post': 'HTTP POST',
+                        'http_api': 'HTTP API'
+                    };
+                    enabledConnections.push(typeNames[type]);
+                }
+            });
+            
+            if (enabledConnections.length === 0) {
+                statusDiv.innerHTML = '<span class="text-warning">未启用任何连接</span>';
+            } else if (enabledConnections.length === 1) {
+                statusDiv.innerHTML = `<span class="text-success">当前启用: ${enabledConnections[0]}</span>`;
+            } else {
+                statusDiv.innerHTML = `<span class="text-danger">警告: 启用了多个连接 (${enabledConnections.join(', ')})</span>`;
+            }
+        }
+        
+        // 保存单个配置项
+        async function saveConfigItem(key, providedValue = null) {
+            try {
+                let value;
+                
+                if (providedValue !== null) {
+                    value = providedValue;
+                } else {
+                    const element = document.getElementById(key);
+                    if (element.type === 'checkbox') {
+                        value = element.checked;
+                    } else if (element.type === 'number') {
+                        value = parseFloat(element.value) || 0;
+                    } else {
+                        value = element.value;
+                    }
+                }
+                
+                // 验证访问令牌
+                if (key.includes('accessToken') && value && value.length < 8) {
+                    showMessage('config-message', '访问令牌长度至少8位', 'warning');
+                    return;
+                }
+                
+                // 验证心跳间隔
+                if (key.includes('heartbeatInterval') && value && (value < 1000 || value > 300000)) {
+                    showMessage('config-message', '心跳间隔应在1000-300000毫秒之间', 'warning');
+                    return;
+                }
+                
+                const response = await fetch('/api/config/item', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({ key, value })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('config-message', '配置保存成功', 'success');
+                    const saveBtn = document.querySelector(`[data-key="${key}"] .btn-save`);
+                    if (saveBtn) {
+                        saveBtn.style.display = 'none';
+                    }
+                    
+                    // 更新本地配置数据
+                    if (configCategories.onebot && configCategories.onebot.items[key]) {
+                        configCategories.onebot.items[key].value = value;
+                    }
+                    
+                    // 如果是连接配置，处理连接互斥和更新状态显示
+                    if (key.includes('onebot.connections.') && key.endsWith('.enabled') && value === true) {
+                        // 启用新连接时，先禁用其他连接，再启用新连接
+                        await disableOtherConnections(key);
+                        
+                        // 重新保存当前连接的启用状态（因为可能被禁用了）
+                        const retryResponse = await fetch('/api/config/item', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`
+                            },
+                            body: JSON.stringify({ key, value: true })
+                        });
+                        
+                        const retryData = await retryResponse.json();
+                        if (retryData.success) {
+                            console.log(`连接 ${key} 启用成功`);
+                        } else {
+                            console.error(`连接 ${key} 启用失败:`, retryData.error);
+                            showMessage('config-message', '启用连接失败: ' + retryData.error, 'danger');
+                            return;
+                        }
+                        
+                        updateConnectionStatus();
+                        // 同步mode配置
+                        setTimeout(() => {
+                            syncModeWithEnabledConnection();
+                        }, 100);
+                    } else if (key.includes('onebot.connections.')) {
+                        updateConnectionStatus();
+                    }
+                } else {
+                    showMessage('config-message', '保存配置失败: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                console.error('保存配置错误:', error);
+                showMessage('config-message', '保存配置失败', 'danger');
+            }
+        }
+        
+        // 配置项渲染功能
+        function initializeConfigDisplay() {
+            filteredCategories = { ...configCategories };
+            renderConfigCategories();
+            // 延迟更新连接状态，确保DOM元素已渲染和配置数据已填充
+            setTimeout(() => {
+                updateConnectionStatus();
+                // 再次延迟确保配置值已经填充到DOM元素中
+                setTimeout(() => {
+                    syncModeWithEnabledConnection();
+                }, 500);
+            }, 300);
+        }
+        
+        // 禁用其他连接（连接互斥）
+        async function disableOtherConnections(enabledKey) {
+            console.log('禁用其他连接，当前启用:', enabledKey);
+            const connectionTypes = ['reverse_ws', 'forward_ws', 'http_post', 'http_api'];
+            const enabledType = enabledKey.split('.')[2]; // 从 onebot.connections.xxx.enabled 中提取连接类型
+            
+            const disablePromises = [];
+            
+            for (const type of connectionTypes) {
+                if (type !== enabledType) {
+                    const key = `onebot.connections.${type}.enabled`;
+                    const element = document.getElementById(key);
+                    
+                    if (element && element.checked) {
+                        console.log(`禁用连接: ${type}`);
+                        element.checked = false;
+                        
+                        // 更新本地配置数据
+                        if (configCategories.onebot && configCategories.onebot.items[key]) {
+                            configCategories.onebot.items[key].value = false;
+                        }
+                        
+                        // 保存到后端
+                        const promise = fetch('/api/config/item', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`
+                            },
+                            body: JSON.stringify({ key, value: false })
+                        }).then(response => response.json()).then(data => {
+                            if (data.success) {
+                                console.log(`连接 ${type} 已禁用`);
+                            } else {
+                                console.error(`禁用连接 ${type} 失败:`, data.error);
+                            }
+                        }).catch(error => {
+                            console.error(`禁用连接 ${type} 错误:`, error);
+                        });
+                        
+                        disablePromises.push(promise);
+                    }
+                }
+            }
+            
+            // 等待所有禁用操作完成
+            await Promise.all(disablePromises);
+            console.log('其他连接已全部禁用');
+        }
+        
+        // 同步mode配置与当前启用的连接类型
+        function syncModeWithEnabledConnection() {
+            console.log('开始同步mode配置...');
+            const connectionTypes = ['reverse_ws', 'forward_ws', 'http_post', 'http_api'];
+            let enabledType = null;
+            let enabledCount = 0;
+            
+            // 查找当前启用的连接类型
+            for (const type of connectionTypes) {
+                const key = `onebot.connections.${type}.enabled`;
+                const element = document.getElementById(key);
+                console.log(`检查连接类型 ${type}:`, element ? `存在，checked=${element.checked}` : '不存在');
+                if (element && element.checked) {
+                    enabledType = type;
+                    enabledCount++;
+                }
+            }
+            
+            console.log(`找到启用的连接类型: ${enabledType}, 启用连接数量: ${enabledCount}`);
+            
+            // 检查是否有多个连接启用（异常情况）
+            if (enabledCount > 1) {
+                console.warn('检测到多个连接同时启用，这可能是配置异常');
+                showMessage('config-message', '检测到多个连接同时启用，请检查配置', 'warning');
+            }
+            
+            // 如果找到启用的连接类型，同步mode配置
+            if (enabledType) {
+                const modeSelect = document.getElementById('onebot.mode');
+                console.log('mode选择框:', modeSelect ? `存在，当前值=${modeSelect.value}` : '不存在');
+                if (modeSelect && modeSelect.value !== enabledType) {
+                    console.log(`同步mode从 ${modeSelect.value} 到 ${enabledType}`);
+                    modeSelect.value = enabledType;
+                    // 自动保存mode配置到后端
+                    console.log('调用saveConfigItem保存mode配置...');
+                    saveConfigItem('onebot.mode', enabledType).then(() => {
+                        console.log('mode配置保存成功');
+                        showMessage('config-message', `已自动切换到${enabledType}模式`, 'success');
+                    }).catch(error => {
+                        console.error('mode配置保存失败:', error);
+                        showMessage('config-message', 'mode配置同步失败', 'danger');
+                    });
+                } else if (modeSelect) {
+                    console.log('mode配置已经是正确的值，无需同步');
+                }
+            } else {
+                console.log('没有找到启用的连接，mode配置保持不变');
+            }
+        }
+        
+
+        
+        function showChangePasswordModal() {
+            document.getElementById('password-modal').classList.remove('d-none');
+        }
+        
+        function hideChangePasswordModal() {
+            document.getElementById('password-modal').classList.add('d-none');
+            document.getElementById('password-form').reset();
+            document.getElementById('password-message').classList.add('d-none');
+        }
+        
+        async function changePassword(event) {
+            event.preventDefault();
+            
+            const oldPassword = document.getElementById('old-password').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+            
+            if (newPassword !== confirmPassword) {
+                showMessage('password-message', '新密码和确认密码不匹配', 'danger');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showMessage('password-message', '新密码长度至少6位', 'danger');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/auth/change-password', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        oldPassword,
+                        newPassword,
+                        confirmPassword
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    showMessage('password-message', '密码修改成功', 'success');
+                    setTimeout(() => {
+                        hideChangePasswordModal();
+                    }, 2000);
+                } else {
+                    showMessage('password-message', '修改失败: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                console.error('修改密码失败:', error);
+                showMessage('password-message', '修改密码失败', 'danger');
+            }
+        }
+        
+        function showMessage(containerId, text, type) {
+            const container = document.getElementById(containerId);
+            container.textContent = text;
+            container.className = `alert alert-${type}`;
+            container.classList.remove('d-none');
+            
+            setTimeout(() => {
+                container.classList.add('d-none');
+            }, 5000);
+        }
+        
+        function formatUptime(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            return `${hours}小时${minutes}分钟`;
+        }
+        
+        function formatMemory(bytes) {
+            const mb = (bytes / 1024 / 1024).toFixed(1);
+            return `${mb} MB`;
+        }
+        
+        // 事件监听
+        document.getElementById('password-form').addEventListener('submit', changePassword);
+        
+        // 处理浏览器后退/前进
+        window.addEventListener('popstate', () => {
+            initRouter();
+        });
+        
+        // 页面加载时初始化
+        init();
+        
+        // 延迟初始化图表，确保DOM元素已渲染
+        setTimeout(() => {
+
+        }, 100);
+        
+        // 定期更新基础信息数据
+        setInterval(loadDashboard, 5000); // 每5秒更新一次以显示实时效果
+    </script>
         </main>
     </div>
-    
-
-    
-    <!-- 加载指示器 -->
-    <div id="loading" class="fixed inset-0 bg-gray-600 bg-opacity-50 flex items-center justify-center z-40 hidden">
-        <div class="bg-white rounded-lg p-6 flex items-center">
-            <i class="fas fa-spinner fa-spin text-blue-600 mr-3"></i>
-            <span>加载中...</span>
-        </div>
-    </div>
-    
-    <script src="app.js"></script>
 </body>
 </html>

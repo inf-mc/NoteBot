@@ -1,0 +1,102 @@
+{
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "env": "development"
+  },
+  "redis": {
+    "host": "localhost",
+    "port": 6379,
+    "password": "",
+    "db": 0,
+    "keyPrefix": "notebot:",
+    "retryDelayOnFailover": 100,
+    "maxRetriesPerRequest": 3,
+    "lazyConnect": true
+  },
+  "onebot": {
+    "mode": "forward_ws",
+    "connections": {
+      "reverse_ws": {
+        "enabled": false,
+        "port": 8080,
+        "path": "/onebot/v11/ws",
+        "accessToken": "",
+        "heartbeatInterval": 30000,
+        "maxConnections": 10
+      },
+      "forward_ws": {
+        "enabled": true,
+        "url": "",
+        "accessToken": "",
+        "heartbeatInterval": 30000,
+        "reconnectInterval": 3001,
+        "maxReconnectAttempts": 10,
+        "connectionTimeout": 10000
+      },
+      "http_post": {
+        "enabled": false,
+        "url": "http://127.0.0.1:5700",
+        "accessToken": "",
+        "timeout": 5000,
+        "retryAttempts": 3,
+        "retryInterval": 1000
+      },
+      "http_api": {
+        "enabled": false,
+        "host": "127.0.0.1",
+        "port": 5700,
+        "accessToken": "",
+        "timeout": 30000,
+        "maxConnections": 100
+      }
+    }
+  },
+  "plugins": {
+    "dir": "plugins",
+    "autoLoad": true,
+    "hotReload": true,
+    "maxLoadTime": 30000,
+    "sandboxed": false
+  },
+  "scheduler": {
+    "enabled": true,
+    "timezone": "Asia/Shanghai",
+    "maxConcurrent": 10,
+    "defaultTimeout": 300000
+  },
+  "logging": {
+    "level": "info",
+    "dir": "logs",
+    "maxSize": "10m",
+    "maxFiles": 5,
+    "datePattern": "YYYY-MM-DD"
+  },
+  "security": {
+    "jwtSecret": "notebot-jwt-secret-key-2024-production-safe",
+    "jwtExpiration": "24h",
+    "bcryptRounds": 10,
+    "rateLimitWindow": 900000,
+    "rateLimitMax": 1000
+  },
+  "upload": {
+    "maxSize": 10485760,
+    "allowedTypes": [
+      "image/jpeg",
+      "image/png",
+      "image/gif"
+    ],
+    "dir": "uploads",
+    "urlPrefix": "/uploads"
+  },
+  "monitoring": {
+    "enabled": false,
+    "interval": 60000,
+    "metricsRetention": 604800000
+  },
+  "cluster": {
+    "enabled": false,
+    "workers": 4,
+    "restartDelay": 1000
+  }
+}

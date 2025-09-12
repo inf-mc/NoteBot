@@ -1,7 +1,7 @@
-# NoteBot - Minecraft X NTQQ机器人框架
+# NoteBot - 现代化 QQ 机器人框架
 
 ![NoteBot Logo](https://img.shields.io/badge/NoteBot-v1.0.0-blue.svg)
-![Node.js](https://img.shields.io/badge/Node.js-14%2B-green.svg)
+![Node.js](https://img.shields.io/badge/Node.js-16%2B-green.svg)
 ![License](https://img.shields.io/badge/License-MIT-yellow.svg)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey.svg)
 
@@ -11,21 +11,24 @@ NoteBot 是一个基于 Node.js 的现代化 QQ 机器人框架，支持 OneBot 
 
 ### 🤖 OneBot 11 协议支持
 - 完整的 OneBot 11 标准实现
-- 支持正向和反向 WebSocket 连接
+- 支持多种连接方式：正向 WebSocket、反向 WebSocket、HTTP POST、HTTP API
 - 消息、事件、API 调用的完整支持
 - 自动重连和错误恢复机制
+- 连接状态实时监控
 
 ### 🔌 强大的插件系统
 - 热插拔插件加载/卸载
 - 插件生命周期管理
 - 插件间通信机制
 - 权限和依赖管理
+- 沙箱化执行环境
 - 丰富的插件 API
 
 ### 🌐 Web 管理界面
 - 现代化的响应式 Web UI
 - 实时系统状态监控
 - 插件管理和配置
+- OneBot 连接管理
 - 日志查看和分析
 - 用户权限管理
 
@@ -34,24 +37,27 @@ NoteBot 是一个基于 Node.js 的现代化 QQ 机器人框架，支持 OneBot 
 - 任务执行状态监控
 - 失败重试机制
 - 任务历史记录
+- 并发控制
 
 ### 📊 系统监控
 - 实时性能监控
 - 资源使用统计
 - 错误日志分析
 - 健康状态检查
+- 指标数据持久化
 
 ### 💾 数据存储
 - Redis 数据库集成
 - 数据持久化
 - 缓存管理
-- 数据备份和恢复
+- 连接池优化
+- 故障转移支持
 
 ## 🚀 快速开始
 
 ### 环境要求
 
-- **Node.js**: 14.0.0 或更高版本
+- **Node.js**: 16.0.0 或更高版本
 - **Redis**: 6.0 或更高版本
 - **内存**: 至少 512MB RAM
 - **存储**: 至少 1GB 可用空间
@@ -62,7 +68,7 @@ NoteBot 是一个基于 Node.js 的现代化 QQ 机器人框架，支持 OneBot 
 
 ```bash
 git clone https://github.com/inf-mc/NoteBot.git
-cd notebot
+cd NoteBot
 ```
 
 #### 2. 安装依赖
@@ -73,37 +79,30 @@ npm install
 
 #### 3. 配置环境
 
-复制配置模板并编辑：
-
-```bash
-cp config/config.example.json config/config.json
-```
-
 编辑 `config/config.json`：
 
 ```json
 {
-  "bot": {
-    "qq": "你的机器人QQ号",
-    "name": "NoteBot",
-    "admin": ["管理员QQ号"]
-  },
-  "onebot": {
-    "host": "127.0.0.1",
-    "port": 8080,
-    "accessToken": "your_access_token",
-    "secret": "your_secret"
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "env": "development"
   },
   "redis": {
-    "host": "127.0.0.1",
+    "host": "localhost",
     "port": 6379,
     "password": "",
     "db": 0
   },
-  "web": {
-    "port": 3000,
-    "host": "0.0.0.0",
-    "secret": "your_jwt_secret"
+  "onebot": {
+    "mode": "forward_ws",
+    "connections": {
+      "forward_ws": {
+        "enabled": true,
+        "url": "ws://your-onebot-server:port",
+        "accessToken": "your_access_token"
+      }
+    }
   }
 }
 ```
@@ -116,87 +115,104 @@ npm run dev
 
 # 生产模式
 npm start
-
-# 后台运行
-npm run start:daemon
 ```
 
 #### 5. 访问管理界面
 
 打开浏览器访问：`http://localhost:3000`
 
-默认登录信息：
-- 用户名：`admin`
-- 密码：`admin123`
-
 ## 📁 项目结构
 
 ```
 NoteBot/
 ├── config/                 # 配置文件
-│   ├── config.json         # 主配置文件
-│   └── config.example.json # 配置模板
-├── logs/                   # 日志文件
+│   └── config.json         # 主配置文件
+├── data/                   # 数据目录
+├── docs/                   # 文档
+│   ├── GETTING_STARTED.md  # 快速开始指南
+│   └── PLUGIN_DEVELOPMENT.md # 插件开发指南
 ├── plugins/                # 插件目录
 │   └── example/            # 示例插件
 ├── src/                    # 源代码
 │   ├── app.js              # 应用入口
-│   ├── database/           # 数据库模块
-│   │   └── redis.js
+│   ├── index.js            # 主入口文件
+│   ├── core/               # 核心模块
+│   │   ├── onebot/         # OneBot协议实现
+│   │   ├── redis/          # Redis数据库模块
+│   │   └── websocket/      # WebSocket模块
 │   ├── monitor/            # 监控模块
 │   │   ├── index.js
-│   │   ├── profiler.js
-│   │   └── logAnalyzer.js
-│   ├── onebot/             # OneBot协议模块
-│   │   ├── index.js
-│   │   ├── api.js
-│   │   ├── events.js
-│   │   └── websocket.js
+│   │   ├── profiler.js     # 性能分析
+│   │   └── logAnalyzer.js  # 日志分析
 │   ├── plugins/            # 插件系统
-│   │   ├── index.js
-│   │   ├── base.js
-│   │   └── loader.js
+│   │   ├── base/           # 基础插件类
+│   │   ├── communication/  # 插件通信
+│   │   ├── loader/         # 插件加载器
+│   │   └── manager/        # 插件管理器
 │   ├── scheduler/          # 任务调度
 │   │   ├── index.js
 │   │   └── taskManager.js
 │   ├── utils/              # 工具模块
-│   │   ├── logger.js
-│   │   └── config.js
+│   │   ├── config.js       # 配置管理
+│   │   └── logger.js       # 日志系统
 │   └── web/                # Web界面
-│       ├── server.js
-│       ├── public/
-│       └── routes/
+│       ├── auth/           # 认证模块
+│       ├── public/         # 静态资源
+│       ├── routes/         # 路由
+│       └── server.js       # Web服务器
+├── uploads/                # 上传文件目录
 ├── package.json            # 项目配置
-├── package-lock.json       # 依赖锁定
 └── README.md              # 项目说明
 ```
 
 ## 🔧 配置说明
 
-### 基础配置
+### 服务器配置
 
 ```json
 {
-  "bot": {
-    "qq": "机器人QQ号",
-    "name": "机器人昵称",
-    "admin": ["管理员QQ号列表"],
-    "debug": false
+  "server": {
+    "port": 3000,
+    "host": "0.0.0.0",
+    "env": "development"
   }
 }
 ```
 
-### OneBot 配置
+### OneBot 连接配置
 
 ```json
 {
   "onebot": {
-    "host": "OneBot服务地址",
-    "port": 8080,
-    "accessToken": "访问令牌",
-    "secret": "签名密钥",
-    "reconnectInterval": 5000,
-    "heartbeatInterval": 30000
+    "mode": "forward_ws",
+    "connections": {
+      "reverse_ws": {
+        "enabled": false,
+        "port": 8080,
+        "path": "/onebot/v11/ws",
+        "accessToken": "",
+        "heartbeatInterval": 30000
+      },
+      "forward_ws": {
+        "enabled": true,
+        "url": "ws://your-server:port",
+        "accessToken": "your_token",
+        "heartbeatInterval": 30000,
+        "reconnectInterval": 3000
+      },
+      "http_post": {
+        "enabled": false,
+        "url": "http://127.0.0.1:5700",
+        "accessToken": "",
+        "timeout": 5000
+      },
+      "http_api": {
+        "enabled": false,
+        "host": "127.0.0.1",
+        "port": 5700,
+        "accessToken": ""
+      }
+    }
   }
 }
 ```
@@ -206,29 +222,40 @@ NoteBot/
 ```json
 {
   "redis": {
-    "host": "Redis服务器地址",
+    "host": "localhost",
     "port": 6379,
-    "password": "Redis密码",
+    "password": "",
     "db": 0,
     "keyPrefix": "notebot:",
-    "retryDelayOnFailover": 100
+    "retryDelayOnFailover": 100,
+    "maxRetriesPerRequest": 3
   }
 }
 ```
 
-### Web 服务配置
+### 插件系统配置
 
 ```json
 {
-  "web": {
-    "port": 3000,
-    "host": "0.0.0.0",
-    "secret": "JWT密钥",
-    "sessionTimeout": 86400,
-    "rateLimit": {
-      "windowMs": 900000,
-      "max": 100
-    }
+  "plugins": {
+    "dir": "plugins",
+    "autoLoad": true,
+    "hotReload": true,
+    "maxLoadTime": 30000,
+    "sandboxed": false
+  }
+}
+```
+
+### 任务调度配置
+
+```json
+{
+  "scheduler": {
+    "enabled": true,
+    "timezone": "Asia/Shanghai",
+    "maxConcurrent": 10,
+    "defaultTimeout": 300000
   }
 }
 ```
@@ -237,18 +264,26 @@ NoteBot/
 
 ```json
 {
-  "logger": {
+  "logging": {
     "level": "info",
-    "file": {
-      "enabled": true,
-      "filename": "logs/notebot.log",
-      "maxSize": "10m",
-      "maxFiles": "7d"
-    },
-    "console": {
-      "enabled": true,
-      "colorize": true
-    }
+    "dir": "logs",
+    "maxSize": "10m",
+    "maxFiles": 5,
+    "datePattern": "YYYY-MM-DD"
+  }
+}
+```
+
+### 安全配置
+
+```json
+{
+  "security": {
+    "jwtSecret": "your-jwt-secret",
+    "jwtExpiration": "24h",
+    "bcryptRounds": 10,
+    "rateLimitWindow": 900000,
+    "rateLimitMax": 1000
   }
 }
 ```
@@ -348,6 +383,19 @@ Authorization: Bearer <your_jwt_token>
 GET /api/system/status
 ```
 
+### OneBot 连接管理
+
+```http
+# 获取连接状态
+GET /api/onebot/status
+
+# 切换连接模式
+POST /api/onebot/switch
+
+# 重连
+POST /api/onebot/reconnect
+```
+
 ### 插件管理
 
 ```http
@@ -377,6 +425,19 @@ POST /api/tasks/:name/execute
 POST /api/tasks/:name/toggle
 ```
 
+### 配置管理
+
+```http
+# 获取配置
+GET /api/config
+
+# 更新配置项
+POST /api/config/item
+
+# 重载配置
+POST /api/config/reload
+```
+
 ### 日志查询
 
 ```http
@@ -390,16 +451,13 @@ GET /api/logs?level=info&limit=100&offset=0
 
 ```bash
 # 安装开发依赖
-npm install --dev
+npm install
 
 # 启动开发模式
 npm run dev
 
 # 运行测试
 npm test
-
-# 代码格式化
-npm run format
 
 # 代码检查
 npm run lint
@@ -453,7 +511,7 @@ docker run -d -p 3000:3000 --name notebot notebot
 module.exports = {
   apps: [{
     name: 'notebot',
-    script: 'src/app.js',
+    script: 'src/index.js',
     instances: 1,
     autorestart: true,
     watch: false,
@@ -476,39 +534,19 @@ pm2 status
 pm2 logs notebot
 ```
 
-### Nginx 反向代理
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    location / {
-        proxy_pass http://localhost:3000;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
-    }
-}
-```
-
 ## 🔍 故障排除
 
 ### 常见问题
 
-#### 1. 连接 OneBot 失败
+#### 1. OneBot 连接失败
 
 **症状**：日志显示 WebSocket 连接失败
 
 **解决方案**：
 - 检查 OneBot 服务是否正常运行
 - 验证配置文件中的地址和端口
-- 确认访问令牌和密钥正确
+- 确认访问令牌正确
+- 检查网络连接和防火墙设置
 
 #### 2. Redis 连接失败
 
@@ -518,6 +556,7 @@ server {
 - 确认 Redis 服务正在运行
 - 检查 Redis 配置信息
 - 验证网络连接和防火墙设置
+- 检查 Redis 密码和数据库配置
 
 #### 3. 插件加载失败
 
@@ -527,6 +566,7 @@ server {
 - 检查插件文件语法错误
 - 验证 `plugin.json` 格式
 - 查看详细错误日志
+- 检查插件依赖是否满足
 
 #### 4. Web 界面无法访问
 
@@ -536,6 +576,7 @@ server {
 - 检查端口是否被占用
 - 验证防火墙设置
 - 确认服务正常启动
+- 检查服务器配置
 
 ### 日志分析
 
@@ -543,13 +584,13 @@ server {
 
 ```bash
 # 查看错误日志
-grep "ERROR" logs/notebot.log
+grep "ERROR" logs/notebot-*.log
 
 # 查看警告日志
-grep "WARN" logs/notebot.log
+grep "WARN" logs/notebot-*.log
 
 # 实时监控日志
-tail -f logs/notebot.log
+tail -f logs/notebot-*.log
 ```
 
 ## 📈 性能优化
@@ -557,9 +598,10 @@ tail -f logs/notebot.log
 ### 系统优化
 
 1. **内存管理**：定期清理无用数据，避免内存泄漏
-2. **数据库优化**：合理设置 Redis 过期时间
+2. **数据库优化**：合理设置 Redis 过期时间和连接池
 3. **日志管理**：定期清理旧日志文件
 4. **插件优化**：避免插件中的阻塞操作
+5. **连接优化**：合理配置 OneBot 连接参数
 
 ### 监控指标
 
@@ -568,13 +610,14 @@ tail -f logs/notebot.log
 - 网络连接数
 - 消息处理速度
 - 错误率统计
+- Redis 连接状态
+- OneBot 连接状态
 
 ## 🤝 社区支持
 
-- **GitHub Issues**：[提交问题](https://github.com/your-username/notebot/issues)
-- **讨论区**：[GitHub Discussions](https://github.com/your-username/notebot/discussions)
-- **QQ 群**：123456789
-- **文档网站**：[https://notebot.example.com](https://notebot.example.com)
+- **GitHub Issues**：[提交问题](https://github.com/inf-mc/NoteBot/issues)
+- **讨论区**：[GitHub Discussions](https://github.com/inf-mc/NoteBot/discussions)
+- **文档网站**：[https://notebot.infinf.info](https://notebot.infinf.info)
 
 ## 📄 许可证
 
@@ -589,13 +632,15 @@ tail -f logs/notebot.log
 - [Redis](https://redis.io/) - 内存数据库
 - [Express.js](https://expressjs.com/) - Web 应用框架
 - [Socket.IO](https://socket.io/) - 实时通信库
+- [Winston](https://github.com/winstonjs/winston) - 日志库
+- [node-cron](https://github.com/node-cron/node-cron) - 任务调度
 
 ## 📊 项目统计
 
-![GitHub stars](https://img.shields.io/github/stars/your-username/notebot?style=social)
-![GitHub forks](https://img.shields.io/github/forks/your-username/notebot?style=social)
-![GitHub issues](https://img.shields.io/github/issues/your-username/notebot)
-![GitHub pull requests](https://img.shields.io/github/issues-pr/your-username/notebot)
+![GitHub stars](https://img.shields.io/github/stars/inf-mc/notebot?style=social)
+![GitHub forks](https://img.shields.io/github/forks/inf-mc/notebot?style=social)
+![GitHub issues](https://img.shields.io/github/issues/inf-mc/notebot)
+![GitHub pull requests](https://img.shields.io/github/issues-pr/inf-mc/notebot)
 
 ---
 

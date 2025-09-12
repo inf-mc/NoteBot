@@ -447,6 +447,33 @@ class RedisManager extends EventEmitter {
   }
 
   /**
+   * 获取匹配模式的键
+   */
+  async keys(pattern) {
+    try {
+      const fullPattern = this.getKey(pattern);
+      const keys = await this.client.keys(fullPattern);
+      // 移除前缀，返回原始键名
+      return keys.map(key => key.replace(this.keyPrefix, ''));
+    } catch (error) {
+      logger.error('Redis KEYS 操作失败:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 检查连接状态
+   */
+  async ping() {
+    try {
+      return await this.client.ping();
+    } catch (error) {
+      logger.error('Redis PING 操作失败:', error);
+      throw error;
+    }
+  }
+
+  /**
    * 获取连接状态
    */
   getStatus() {

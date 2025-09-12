@@ -3,534 +3,426 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <!-- 强制防缓存机制 -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>NoteBot 登录 - 管理后台</title>
-    <link href="./css/tailwind.min.css" rel="stylesheet">
-    <link href="./css/all.min.css" rel="stylesheet">
-    <style>
-        .login-container {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-        }
-        .login-card {
-            backdrop-filter: blur(10px);
-            background: rgba(255, 255, 255, 0.95);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-        }
-        .input-group {
-            position: relative;
-        }
-        .input-group input {
-            transition: all 0.3s ease;
-        }
-        .input-group input:focus {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.3);
-        }
-        .btn-login {
-            background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-            transition: all 0.3s ease;
-        }
-        .btn-login:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 15px 30px -5px rgba(59, 130, 246, 0.4);
-        }
-        .error-message {
-            animation: shake 0.5s ease-in-out;
-        }
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-5px); }
-            75% { transform: translateX(5px); }
-        }
-        .loading-spinner {
-            animation: spin 1s linear infinite;
-        }
-        @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-        }
-        .fade-in {
-            animation: fadeIn 0.6s ease-out;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(30px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-    </style>
+    <title>NoteBot 管理后台 - 登录</title>
+    <link rel="stylesheet" href="/assets/css/style.css">
 </head>
-<body class="login-container flex items-center justify-center p-4">
-    <div class="login-card rounded-2xl p-8 w-full max-w-md fade-in">
-        <!-- Logo和标题 -->
-        <div class="text-center mb-8">
-            <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-full mb-4">
-                <i class="fas fa-robot text-2xl text-white"></i>
-            </div>
-            <h1 class="text-3xl font-bold text-gray-900 mb-2">NoteBot</h1>
-            <p class="text-gray-600">管理后台登录</p>
-        </div>
-
-        <!-- 登录表单 -->
-        <form id="loginForm" class="space-y-6">
-            <!-- 用户名输入 -->
-            <div class="input-group">
-                <label for="username" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-user mr-2 text-blue-600"></i>
-                    用户名
-                </label>
-                <input 
-                    type="text" 
-                    id="username" 
-                    name="username"
-                    required 
-                    autocomplete="username"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="请输入用户名"
-                >
-                <div class="invalid-feedback text-red-500 text-sm mt-1 hidden" id="usernameError"></div>
-            </div>
-
-            <!-- 密码输入 -->
-            <div class="input-group">
-                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">
-                    <i class="fas fa-lock mr-2 text-blue-600"></i>
-                    密码
-                </label>
-                <div class="relative">
-                    <input 
-                        type="password" 
-                        id="password" 
-                        name="password"
-                        required 
-                        autocomplete="current-password"
-                        class="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="请输入密码"
-                    >
-                    <button 
-                        type="button" 
-                        id="togglePassword" 
-                        class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700"
-                    >
-                        <i class="fas fa-eye" id="passwordIcon"></i>
-                    </button>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <div class="auth-header">
+                <div class="auth-logo">
+                    <span class="icon">
+                        <svg class="svg-icon" viewBox="0 0 24 24">
+                            <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z" fill="none" stroke="currentColor" stroke-width="2"/>
+                            <circle cx="9" cy="9" r="1.5"/>
+                            <circle cx="15" cy="9" r="1.5"/>
+                            <path d="M8 13h8" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
+                    <h1 class="auth-title">NoteBot</h1>
                 </div>
-                <div class="invalid-feedback text-red-500 text-sm mt-1 hidden" id="passwordError"></div>
+                <p class="auth-subtitle">管理后台</p>
             </div>
-
-            <!-- 记住我 -->
-            <div class="flex items-center justify-between">
-                <label class="flex items-center">
-                    <input type="checkbox" id="rememberMe" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
-                    <span class="ml-2 text-sm text-gray-600">记住我</span>
-                </label>
-                <a href="#" class="text-sm text-blue-600 hover:text-blue-800">忘记密码？</a>
+            
+            <div class="auth-body">
+                <div id="message" class="d-none"></div>
+                
+                <!-- 初始化页面 -->
+                <div id="init-page" class="auth-form d-none">
+                    <h2 class="form-title">初始化设置</h2>
+                    <p class="form-description">首次使用，请设置管理员账户</p>
+                    
+                    <form id="init-form">
+                        <div class="form-group">
+                            <label for="init-username" class="form-label">管理员用户名</label>
+                            <input type="text" id="init-username" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="init-password" class="form-label">密码</label>
+                            <input type="password" id="init-password" class="form-control" autocomplete="new-password" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="init-confirm-password" class="form-label">确认密码</label>
+                            <input type="password" id="init-confirm-password" class="form-control" autocomplete="new-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span class="btn-text">创建管理员账户</span>
+                            <div class="btn-spinner d-none"></div>
+                        </button>
+                    </form>
+                </div>
+                
+                <!-- 登录页面 -->
+                <div id="login-page" class="auth-form">
+                    <h2 class="form-title">登录</h2>
+                    <p class="form-description">请输入您的凭据以访问管理后台</p>
+                    
+                    <form id="login-form">
+                        <div class="form-group">
+                            <label for="username" class="form-label">用户名</label>
+                            <input type="text" id="username" class="form-control" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="password" class="form-label">密码</label>
+                            <input type="password" id="password" class="form-control" autocomplete="current-password" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-block">
+                            <span class="btn-text">登录</span>
+                            <div class="btn-spinner d-none"></div>
+                        </button>
+                    </form>
+                </div>
             </div>
-
-            <!-- 错误消息 -->
-            <div id="errorMessage" class="error-message text-red-600 text-sm text-center hidden"></div>
-
-            <!-- 登录按钮 -->
-            <button 
-                type="submit" 
-                id="loginButton"
-                class="btn-login w-full text-white py-3 px-4 rounded-lg font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >
-                <span id="loginButtonText">
-                    <i class="fas fa-sign-in-alt mr-2"></i>
-                    登录
-                </span>
-                <span id="loginButtonLoading" class="hidden">
-                    <i class="fas fa-spinner loading-spinner mr-2"></i>
-                    登录中...
-                </span>
-            </button>
-        </form>
-
-        <!-- 底部信息 -->
-        <div class="mt-8 text-center">
-            <p class="text-xs text-gray-500">
-                © 2025 NoteBot
-            </p>
+            
+            <div class="auth-footer">
+                <p class="footer-text">© 2024 NoteBot. 保留所有权利。</p>
+            </div>
         </div>
     </div>
-
+    
+    <style>
+        /* 认证页面特定样式 */
+        .auth-page {
+            background: linear-gradient(135deg, var(--primary-color) 0%, var(--primary-dark) 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-md);
+        }
+        
+        .auth-container {
+            width: 100%;
+            max-width: 400px;
+        }
+        
+        .auth-card {
+            background: var(--white);
+            border-radius: var(--border-radius-lg);
+            box-shadow: var(--shadow-xl);
+            overflow: hidden;
+            animation: slideUp 0.6s ease-out;
+        }
+        
+        .auth-header {
+            text-align: center;
+            padding: var(--spacing-xl) var(--spacing-lg) var(--spacing-lg);
+            background: linear-gradient(135deg, var(--gray-50) 0%, var(--white) 100%);
+        }
+        
+        .auth-logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+        
+        .auth-logo .icon {
+            font-size: 2.5rem;
+        }
+        
+        .auth-title {
+            font-size: var(--font-size-2xl);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-primary);
+            margin: 0;
+        }
+        
+        .auth-subtitle {
+            color: var(--text-muted);
+            font-size: var(--font-size-lg);
+            margin: 0;
+        }
+        
+        .auth-body {
+            padding: var(--spacing-lg);
+        }
+        
+        .auth-form {
+            animation: fadeIn 0.4s ease-out;
+        }
+        
+        .form-title {
+            font-size: var(--font-size-xl);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-primary);
+            margin-bottom: var(--spacing-xs);
+            text-align: center;
+        }
+        
+        .form-description {
+            color: var(--text-secondary);
+            text-align: center;
+            margin-bottom: var(--spacing-lg);
+            line-height: 1.5;
+        }
+        
+        .btn-block {
+            width: 100%;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .btn-text {
+            transition: var(--transition-base);
+        }
+        
+        .btn-spinner {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 20px;
+            height: 20px;
+            border: 2px solid transparent;
+            border-top: 2px solid currentColor;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        .btn:disabled .btn-text {
+            opacity: 0;
+        }
+        
+        .btn:disabled .btn-spinner {
+            display: block !important;
+        }
+        
+        .auth-footer {
+            padding: var(--spacing-md) var(--spacing-lg);
+            background: var(--gray-50);
+            border-top: 1px solid var(--border-color);
+            text-align: center;
+        }
+        
+        .footer-text {
+            color: var(--text-muted);
+            font-size: var(--font-size-sm);
+            margin: 0;
+        }
+        
+        /* 动画 */
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes spin {
+            to {
+                transform: translate(-50%, -50%) rotate(360deg);
+            }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 480px) {
+            .auth-page {
+                padding: var(--spacing-sm);
+            }
+            
+            .auth-header {
+                padding: var(--spacing-lg) var(--spacing-md) var(--spacing-md);
+            }
+            
+            .auth-body {
+                padding: var(--spacing-md);
+            }
+            
+            .auth-title {
+                font-size: var(--font-size-xl);
+            }
+        }
+    </style>
+    
     <script>
-        let csrfToken = null;
+        let isInitialized = false;
         
-        // 获取CSRF令牌
-        async function getCsrfToken() {
+        // 页面加载时检查初始化状态
+        async function checkInitialization() {
             try {
-                //console.log('🔑 [DEBUG] 开始获取CSRF令牌');
-                const response = await fetch('/api/csrf-token', {
-                    method: 'GET',
-                    credentials: 'include'
-                });
+                const response = await fetch('/api/auth/init-status');
+                const data = await response.json();
                 
-                //console.log('🔑 [DEBUG] CSRF令牌请求响应状态:', response.status);
-                //console.log('🔑 [DEBUG] CSRF令牌请求响应 OK:', response.ok);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    csrfToken = data.token;
-                    //console.log('✅ [DEBUG] CSRF令牌获取成功:', csrfToken);
-                } else {
-                    console.warn('❌ [DEBUG] CSRF令牌获取失败，状态码:', response.status);
-                }
-            } catch (error) {
-                console.error('❌ [DEBUG] 获取CSRF令牌失败:', error);
-                //console.log('🔑 [DEBUG] CSRF错误详情:', error.message, error.stack);
-            }
-        }
-        
-        // 立即清理URL中的所有参数（安全措施）
-        //console.log('页面加载前执行清理URL参数');
-        (function() {
-            const urlParams = new URLSearchParams(window.location.search);
-            
-            // 检查是否有任何URL参数
-            if (urlParams.toString()) {
-                console.warn('检测到URL参数，出于安全考虑将被清除');
-                // 清除所有URL参数
-                const newUrl = window.location.pathname;
-                window.history.replaceState({}, document.title, newUrl);
-            }
-        })();
-        
-        // 初始化
-        document.addEventListener('DOMContentLoaded', function() {
-            //console.log('🚀 [DEBUG] DOM加载完成，开始初始化登录页面');
-            initializeLoginPage();
-        });
-        
-        async function initializeLoginPage() {
-            //console.log('🚀 [DEBUG] 初始化登录页面开始');
-            
-            // 获取CSRF令牌
-            //console.log('🚀 [DEBUG] 获取CSRF令牌...');
-            await getCsrfToken();
-            //console.log('🚀 [DEBUG] CSRF令牌获取完成:', csrfToken);
-            
-            // 绑定事件监听器
-            //console.log('🚀 [DEBUG] 绑定事件监听器...');
-            bindEventListeners();
-            
-            // 检查URL参数显示消息
-            //console.log('🚀 [DEBUG] 检查URL消息...');
-            checkUrlMessages();
-            
-            // 聚焦到用户名输入框
-            //console.log('🚀 [DEBUG] 设置焦点到用户名输入框...');
-            const usernameInput = document.getElementById('username');
-            if (usernameInput) {
-                usernameInput.focus();
-                //console.log('🚀 [DEBUG] 用户名输入框已获得焦点');
-            } else {
-                //console.log('❌ [DEBUG] 未找到用户名输入框');
-            }
-            
-            //console.log('🚀 [DEBUG] 登录页面初始化完成');
-        }
-        
-        // 检查当前登录状态
-        async function checkLoginStatus() {
-            try {
-                //console.log('🔍 [DEBUG] 页面加载 - 开始检查当前登录状态');
-                //console.log('🔍 [DEBUG] 页面加载 - 当前Cookie:', document.cookie);
-                
-                const response = await fetch('/api/auth/check', {
-                    method: 'GET',
-                    credentials: 'include'
-                });
-                
-                //console.log('🔍 [DEBUG] 页面加载 - 认证检查响应状态:', response.status);
-                //console.log('🔍 [DEBUG] 页面加载 - 认证检查响应 OK:', response.ok);
-                
-                if (response.ok) {
-                    const data = await response.json();
-                    //console.log('🔍 [DEBUG] 页面加载 - 认证检查响应数据:', data);
+                if (data.success) {
+                    isInitialized = !data.needsInit;
                     
-                    if (data.success && data.authenticated) {
-                        //console.log('✅ [DEBUG] 页面加载 - 用户已登录，立即重定向到主页');
-                        //console.log('🔍 [DEBUG] 页面加载 - 用户信息:', data.user);
-                        
-                        // 立即重定向，不显示消息避免闪烁
-                        window.location.href = '/';
-                        
-                        return true;
+                    if (isInitialized) {
+                        showLoginForm();
                     } else {
-                        //console.log('🔍 [DEBUG] 页面加载 - 认证检查失败 - success:', data.success, 'authenticated:', data.authenticated);
+                        showInitForm();
                     }
                 } else {
-                    //console.log('❌ [DEBUG] 页面加载 - 认证检查请求失败，状态码:', response.status);
+                    showMessage('检查初始化状态失败', 'danger');
+                    showLoginForm(); // 默认显示登录表单
                 }
-                
-                //console.log('🔍 [DEBUG] 页面加载 - 用户未登录，显示登录表单');
-                return false;
             } catch (error) {
-                console.error('❌ [DEBUG] 页面加载 - 检查登录状态失败:', error);
-                //console.log('🔍 [DEBUG] 页面加载 - 错误详情:', error.message, error.stack);
-                return false;
+                console.error('检查初始化状态失败:', error);
+                showMessage('连接服务器失败', 'danger');
+                showLoginForm();
             }
         }
         
-        function checkUrlMessages() {
-            // 不再从URL参数获取消息，所有消息通过安全的方式传递
-            // 检查sessionStorage中是否有消息
-            const storedError = sessionStorage.getItem('loginError');
-            const storedMessage = sessionStorage.getItem('loginMessage');
-            
-            if (storedError) {
-                showMessage(storedError, 'error');
-                sessionStorage.removeItem('loginError');
-            }
-            
-            if (storedMessage) {
-                showMessage(storedMessage, 'info');
-                sessionStorage.removeItem('loginMessage');
-            }
+        function showInitForm() {
+            document.getElementById('login-page').classList.add('d-none');
+            document.getElementById('init-page').classList.remove('d-none');
         }
         
-        function bindEventListeners() {
-            const loginForm = document.getElementById('loginForm');
-            if (loginForm) {
-                loginForm.addEventListener('submit', handleLogin);
-            }
-            
-            // 密码显示/隐藏切换
-            const togglePassword = document.getElementById('togglePassword');
-            if (togglePassword) {
-                togglePassword.addEventListener('click', togglePasswordVisibility);
-            }
-            
-            // 回车键登录
-            document.addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    const activeElement = document.activeElement;
-                    if (activeElement && (activeElement.id === 'username' || activeElement.id === 'password')) {
-                        handleLogin(e);
-                    }
-                }
-            });
-            
-            // 输入框变化时清除错误状态
-            const inputs = document.querySelectorAll('input[type="text"], input[type="password"]');
-            inputs.forEach(input => {
-                input.addEventListener('input', clearErrorState);
-            });
+        function showLoginForm() {
+            document.getElementById('init-page').classList.add('d-none');
+            document.getElementById('login-page').classList.remove('d-none');
         }
         
-        async function handleLogin(event) {
+        // 初始化管理员账户
+        async function initializeAdmin(event) {
             event.preventDefault();
             
-            const username = document.getElementById('username').value.trim();
-            const password = document.getElementById('password').value;
-            const rememberMe = document.getElementById('rememberMe').checked;
+            const username = document.getElementById('init-username').value;
+            const password = document.getElementById('init-password').value;
+            const confirmPassword = document.getElementById('init-confirm-password').value;
             
-            //console.log('🔐 [DEBUG] 开始登录流程');
-            //console.log('🔐 [DEBUG] 用户名:', username);
-            //console.log('🔐 [DEBUG] 记住我:', rememberMe);
-            //console.log('🔐 [DEBUG] CSRF Token:', csrfToken);
-            
-            // 表单验证
-            if (!validateForm(username, password)) {
-                //console.log('🔐 [DEBUG] 表单验证失败');
+            if (password !== confirmPassword) {
+                showMessage('密码和确认密码不匹配', 'danger');
                 return;
             }
             
-            // 显示加载状态
-            setLoadingState(true);
+            if (password.length < 6) {
+                showMessage('密码长度至少6位', 'danger');
+                return;
+            }
+            
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            setButtonLoading(submitBtn, true);
             
             try {
-                const headers = {
-                    'Content-Type': 'application/json'
-                };
-                
-                // 添加CSRF令牌到请求头
-                if (csrfToken) {
-                    headers['X-CSRF-Token'] = csrfToken;
-                }
-                
-                //console.log('🔐 [DEBUG] 发送登录请求到 /api/auth/login');
-                //console.log('🔐 [DEBUG] 请求头:', headers);
-                
-                const response = await fetch('/api/auth/login', {
+                const response = await fetch('/api/auth/init', {
                     method: 'POST',
-                    headers: headers,
-                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         username,
                         password,
-                        rememberMe
+                        confirmPassword
                     })
                 });
                 
-                //console.log('🔐 [DEBUG] 登录响应状态:', response.status);
-                //console.log('🔐 [DEBUG] 登录响应 OK:', response.ok);
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('管理员账户创建成功，请登录', 'success');
+                    setTimeout(() => {
+                        showLoginForm();
+                        isInitialized = true;
+                    }, 2000);
+                } else {
+                    showMessage('创建失败: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                console.error('初始化失败:', error);
+                showMessage('初始化失败，请重试', 'danger');
+            } finally {
+                setButtonLoading(submitBtn, false);
+            }
+        }
+        
+        // 用户登录
+        async function login(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (!username || !password) {
+                showMessage('请输入用户名和密码', 'danger');
+                return;
+            }
+            
+            const submitBtn = event.target.querySelector('button[type="submit"]');
+            setButtonLoading(submitBtn, true);
+            
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username,
+                        password
+                    })
+                });
                 
                 const data = await response.json();
-                //console.log('🔐 [DEBUG] 登录响应数据:', data);
                 
-                if (response.ok && data.success) {
-                    // 登录成功
-                    //console.log('✅ [DEBUG] 登录成功，开始处理重定向流程');
+                if (data.success) {
+                    // 保存token和用户信息
+                    localStorage.setItem('token', data.token);
+                    localStorage.setItem('user', JSON.stringify(data.user));
                     
-                    // 检查Cookie是否设置
-                    //console.log('🔐 [DEBUG] 当前Cookie:', document.cookie);
-                    
-                    // 显示成功消息
                     showMessage('登录成功，正在跳转...', 'success');
                     
-                    // 隐藏登录表单
-                    const loginForm = document.getElementById('loginForm');
-                    if (loginForm) {
-                        loginForm.style.display = 'none';
-                    }
-                    
-                    // 清除页面缓存
-                    if ('caches' in window) {
-                        caches.keys().then(names => {
-                            names.forEach(name => {
-                                caches.delete(name);
-                            });
-                        });
-                    }
-                    
-                    //console.log('🔐 [DEBUG] 登录成功，等待1秒后重定向到主页');
-                    
-                    // 登录成功后直接重定向，不再进行额外的认证检查
-                     setTimeout(() => {
-                         //console.log('🔐 [DEBUG] 执行重定向到主页');
-                         window.location.href = '/';
-                     }, 1000); // 给Cookie设置足够时间
+                    setTimeout(() => {
+                        window.location.href = '/webui';
+                    }, 1000);
                 } else {
-                    // 登录失败
-                    showMessage(data.message || '登录失败，请检查用户名和密码', 'error');
-                    setLoadingState(false);
-                    
-                    // 清空密码框
-                    document.getElementById('password').value = '';
-                    document.getElementById('password').focus();
+                    showMessage('登录失败: ' + data.error, 'danger');
                 }
-                
             } catch (error) {
-                console.error('登录请求失败:', error);
-                showMessage('网络连接失败，请检查网络后重试', 'error');
-                setLoadingState(false);
+                console.error('登录失败:', error);
+                showMessage('登录失败，请重试', 'danger');
+            } finally {
+                setButtonLoading(submitBtn, false);
             }
         }
         
-        function validateForm(username, password) {
-            clearErrorState();
-            
-            let isValid = true;
-            
-            if (!username) {
-                showFieldError('username', '请输入用户名');
-                isValid = false;
-            }
-            
-            if (!password) {
-                showFieldError('password', '请输入密码');
-                isValid = false;
-            }
-            
-            return isValid;
-        }
-        
-        function showFieldError(fieldId, message) {
-            const field = document.getElementById(fieldId);
-            if (field) {
-                field.classList.add('error');
-                
-                // 创建或更新错误消息
-                let errorElement = field.parentNode.querySelector('.field-error');
-                if (!errorElement) {
-                    errorElement = document.createElement('div');
-                    errorElement.className = 'field-error';
-                    field.parentNode.appendChild(errorElement);
-                }
-                errorElement.textContent = message;
-                
-                // 聚焦到错误字段
-                field.focus();
-            }
-        }
-        
-        function clearErrorState() {
-            // 清除输入框错误状态
-            const errorInputs = document.querySelectorAll('input.error');
-            errorInputs.forEach(input => {
-                input.classList.remove('error');
-            });
-            
-            // 清除错误消息
-            const errorMessages = document.querySelectorAll('.field-error');
-            errorMessages.forEach(msg => {
-                msg.remove();
-            });
-        }
-        
-        // 切换密码可见性
-        function togglePasswordVisibility() {
-            const passwordInput = document.getElementById('password');
-            const passwordIcon = document.getElementById('passwordIcon');
-
-            if (passwordInput.type === 'password') {
-                passwordInput.type = 'text';
-                passwordIcon.className = 'fas fa-eye-slash';
-            } else {
-                passwordInput.type = 'password';
-                passwordIcon.className = 'fas fa-eye';
-            }
-        }
-        
-        function setLoadingState(loading) {
-            const loginButton = document.getElementById('loginButton');
-            const loginButtonText = document.getElementById('loginButtonText');
-            const loginButtonLoading = document.getElementById('loginButtonLoading');
-            const inputs = document.querySelectorAll('input');
+        function setButtonLoading(button, loading) {
+            const btnText = button.querySelector('.btn-text');
+            const btnSpinner = button.querySelector('.btn-spinner');
             
             if (loading) {
-                loginButton.disabled = true;
-                loginButtonText.classList.add('hidden');
-                loginButtonLoading.classList.remove('hidden');
-                inputs.forEach(input => input.disabled = true);
+                button.disabled = true;
+                btnText.style.opacity = '0';
+                btnSpinner.classList.remove('d-none');
             } else {
-                loginButton.disabled = false;
-                loginButtonText.classList.remove('hidden');
-                loginButtonLoading.classList.add('hidden');
-                inputs.forEach(input => input.disabled = false);
+                button.disabled = false;
+                btnText.style.opacity = '1';
+                btnSpinner.classList.add('d-none');
             }
         }
         
-        function showMessage(message, type = 'info') {
-            // 移除现有消息
-            const existingMessage = document.querySelector('.message');
-            if (existingMessage) {
-                existingMessage.remove();
-            }
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `alert alert-${type}`;
+            messageEl.classList.remove('d-none');
             
-            // 创建新消息
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${type}`;
-            messageDiv.textContent = message;
-            
-            // 插入到表单前面
-            const form = document.getElementById('loginForm');
-            form.parentNode.insertBefore(messageDiv, form);
-            
-            // 自动隐藏成功和信息消息
-            if (type === 'success' || type === 'info') {
-                setTimeout(() => {
-                    if (messageDiv.parentNode) {
-                        messageDiv.remove();
-                    }
-                }, 5000);
+            setTimeout(() => {
+                messageEl.classList.add('d-none');
+            }, 5000);
+        }
+        
+        // 检查是否已登录
+        function checkAuth() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                // 如果已有token，直接跳转到管理后台
+                window.location.href = '/webui';
             }
         }
+        
+        // 事件监听
+        document.getElementById('init-form').addEventListener('submit', initializeAdmin);
+        document.getElementById('login-form').addEventListener('submit', login);
+        
+        // 页面加载时执行
+        checkAuth();
+        checkInitialization();
     </script>
 </body>
 </html>

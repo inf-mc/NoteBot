@@ -485,13 +485,16 @@ class Application extends EventEmitter {
             
             // 等待日志写入完成后再关闭
             await new Promise(resolve => {
-                if (logger.end) {
-                    logger.end(() => {
+                // 等待所有日志写入完成
+                setTimeout(() => {
+                    if (logger.end && typeof logger.end === 'function') {
+                        logger.end(() => {
+                            resolve();
+                        });
+                    } else {
                         resolve();
-                    });
-                } else {
-                    setTimeout(resolve, 500);
-                }
+                    }
+                }, 100);
             });
             
         } catch (error) {
@@ -518,24 +521,40 @@ class Application extends EventEmitter {
             
             switch (name) {
                 case 'web':
-                    await webServer.stop();
+                    if (webServer && typeof webServer.stop === 'function') {
+                        await webServer.stop();
+                    }
                     break;
                 case 'scheduler':
-                    await taskScheduler.stop();
+                    if (taskScheduler && typeof taskScheduler.close === 'function') {
+                        await taskScheduler.close();
+                    }
                     break;
                 case 'plugins':
-                    await pluginManager.shutdown();
+                    if (pluginManager && typeof pluginManager.close === 'function') {
+                        await pluginManager.close();
+                    }
                     break;
                 case 'onebot':
-                    await onebotCore.disconnect();
+                    if (onebotCore && typeof onebotCore.close === 'function') {
+                        await onebotCore.close();
+                    }
                     break;
                 case 'monitor':
-                    systemMonitor.stop();
-                    profiler.stop();
-                    logAnalyzer.stop();
+                    if (systemMonitor && typeof systemMonitor.stop === 'function') {
+                        systemMonitor.stop();
+                    }
+                    if (profiler && typeof profiler.stop === 'function') {
+                        profiler.stop();
+                    }
+                    if (logAnalyzer && typeof logAnalyzer.stop === 'function') {
+                        logAnalyzer.stop();
+                    }
                     break;
                 case 'redis':
-                    await redisClient.disconnect();
+                    if (redisClient && typeof redisClient.close === 'function') {
+                        await redisClient.close();
+                    }
                     break;
             }
             

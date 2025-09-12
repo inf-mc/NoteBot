@@ -373,16 +373,16 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // 优雅关闭
-const gracefulShutdown = (signal) => {
-  logger.info(`Received ${signal}, shutting down gracefully`);
-  logger.on('finish', () => {
-    process.exit(0);
-  });
-  logger.end();
-};
+// 移除信号处理，由主应用程序统一管理关闭流程
+// const gracefulShutdown = (signal) => {
+//   logger.info(`Received ${signal}, shutting down gracefully`);
+//   logger.on('finish', () => {
+//     process.exit(0);
+//   });
+//   logger.end();
+// };
 
-process.on('SIGINT', () => gracefulShutdown('SIGINT'));
-process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
-
+// process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+// process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 
 module.exports = logger;

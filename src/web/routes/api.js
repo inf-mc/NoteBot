@@ -1,516 +1,669 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 const rateLimit = require('express-rate-limit');
-const logger = require('../../utils/logger');
+const fs = require('fs');
+const path = require('path');
 const config = require('../../utils/config');
+const logger = require('../../utils/logger').module('API');
+const userManager = require('../auth/userManager');
 
 const router = express.Router();
 
-// 限流中间件
+// API 速率限制
 const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15分钟
-    max: 1000, // 限制每个IP 15分钟内最多1000个请求
-    message: { success: false, message: '请求过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 1000, // 限制每个IP 15分钟内最多1000次请求
+  message: {
+    error: 'Too many requests from this IP, please try again later.'
+  }
 });
 
-// 登录限流
+// 登录速率限制
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15分钟
-    max: 20, // 限制每个IP 15分钟内最多20次登录尝试
-    message: { success: false, message: '登录尝试过于频繁，请稍后再试' },
-    standardHeaders: true,
-    legacyHeaders: false
+  windowMs: 15 * 60 * 1000, // 15分钟
+  max: 20, // 限制每个IP 15分钟内最多20次登录尝试
+  message: {
+    error: 'Too many login attempts from this IP, please try again later.'
+  }
 });
 
-// 应用限流中间件
+// 应用速率限制
 router.use(apiLimiter);
 
-// JWT验证中间件
-function authenticateToken(req, res, next) {
-    const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1];
+// JWT 验证中间件
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  const decoded = userManager.verifyToken(token);
+  if (!decoded) {
+    return res.status(403).json({ error: 'Invalid or expired token' });
+  }
+  
+  req.user = decoded;
+  next();
+};
+
+// 检查是否需要初始化
+router.get('/auth/init-status', (req, res) => {
+  res.json({
+    success: true,
+    needsInit: !userManager.hasUsers()
+  });
+});
+
+// 初始化管理员账户
+router.post('/auth/init', loginLimiter, async (req, res) => {
+  try {
+    if (userManager.hasUsers()) {
+      return res.status(400).json({
+        error: '系统已初始化，无法重复初始化'
+      });
+    }
+
+    const { username, password, confirmPassword } = req.body;
     
-    if (!token) {
-        return res.status(401).json({ success: false, message: '访问令牌缺失' });
+    if (!username || !password || !confirmPassword) {
+      return res.status(400).json({
+        error: '用户名、密码和确认密码都是必填项'
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        error: '密码和确认密码不匹配'
+      });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({
+        error: '密码长度至少6位'
+      });
+    }
+
+    const user = await userManager.createUser(username, password, 'admin');
+    const token = userManager.generateToken(user);
+    
+    res.json({
+      success: true,
+      message: '管理员账户创建成功',
+      token,
+      user
+    });
+    
+    logger.info(`管理员账户 ${username} 初始化成功`);
+    
+  } catch (error) {
+    logger.error('初始化错误:', error);
+    res.status(500).json({
+      error: error.message || 'Internal server error'
+    });
+  }
+});
+
+// 登录路由
+router.post('/auth/login', loginLimiter, async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({
+        error: '用户名和密码都是必填项'
+      });
     }
     
-    jwt.verify(token, config.get('security.jwtSecret'), (err, user) => {
-        if (err) {
-            return res.status(403).json({ success: false, message: '访问令牌无效' });
-        }
-        req.user = user;
-        next();
+    const user = await userManager.validateUser(username, password);
+    if (!user) {
+      return res.status(401).json({
+        error: '用户名或密码错误'
+      });
+    }
+    
+    const token = userManager.generateToken(user);
+    
+    res.json({
+      success: true,
+      token,
+      user
     });
+    
+    logger.info(`用户 ${username} 登录成功`);
+    
+  } catch (error) {
+    logger.error('登录错误:', error);
+    res.status(500).json({
+      error: 'Internal server error'
+    });
+  }
+});
+
+// 验证token路由
+router.get('/auth/check', authenticateToken, (req, res) => {
+  res.json({
+    success: true,
+    user: req.user
+  });
+});
+
+// 修改密码
+router.post('/auth/change-password', authenticateToken, async (req, res) => {
+  try {
+    const { oldPassword, newPassword, confirmPassword } = req.body;
+    
+    if (!oldPassword || !newPassword || !confirmPassword) {
+      return res.status(400).json({
+        error: '所有密码字段都是必填项'
+      });
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({
+        error: '新密码和确认密码不匹配'
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        error: '新密码长度至少6位'
+      });
+    }
+
+    await userManager.changePassword(req.user.username, oldPassword, newPassword);
+    
+    res.json({
+      success: true,
+      message: '密码修改成功'
+    });
+    
+  } catch (error) {
+    logger.error('修改密码错误:', error);
+    res.status(400).json({
+      error: error.message || '修改密码失败'
+    });
+  }
+});
+
+// 获取插件列表
+router.get('/plugins', authenticateToken, (req, res) => {
+  try {
+    const pluginsDir = path.join(process.cwd(), 'plugins');
+    const plugins = [];
+    
+    if (fs.existsSync(pluginsDir)) {
+      const pluginDirs = fs.readdirSync(pluginsDir, { withFileTypes: true })
+        .filter(dirent => dirent.isDirectory())
+        .map(dirent => dirent.name);
+      
+      for (const pluginName of pluginDirs) {
+        const pluginPath = path.join(pluginsDir, pluginName);
+        const configPath = path.join(pluginPath, 'plugin.json');
+        
+        if (fs.existsSync(configPath)) {
+          try {
+            const configData = fs.readFileSync(configPath, 'utf8');
+            const pluginConfig = JSON.parse(configData);
+            plugins.push({
+              name: pluginName,
+              ...pluginConfig,
+              path: pluginPath
+            });
+          } catch (error) {
+            logger.warn(`解析插件配置失败: ${pluginName}`, error);
+          }
+        }
+      }
+    }
+    
+    res.json({
+      success: true,
+      data: plugins
+    });
+  } catch (error) {
+    logger.error('获取插件列表错误:', error);
+    res.status(500).json({
+      error: 'Failed to get plugins list'
+    });
+  }
+});
+
+// 获取配置文件内容
+router.get('/config', authenticateToken, (req, res) => {
+  try {
+    const configPath = path.join(process.cwd(), 'config', 'config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      return res.status(404).json({
+        error: '配置文件不存在'
+      });
+    }
+    
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const configJson = JSON.parse(configData);
+    
+    // 移除敏感信息
+    if (configJson.security && configJson.security.jwtSecret) {
+      configJson.security.jwtSecret = '***';
+    }
+    if (configJson.redis && configJson.redis.password) {
+      configJson.redis.password = '***';
+    }
+    
+    res.json({
+      success: true,
+      data: configJson
+    });
+  } catch (error) {
+    logger.error('获取配置文件错误:', error);
+    res.status(500).json({
+      error: 'Failed to get configuration'
+    });
+  }
+});
+
+// 获取分类配置
+router.get('/config/categories', authenticateToken, (req, res) => {
+  try {
+    const configPath = path.join(process.cwd(), 'config', 'config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      return res.status(404).json({
+        error: '配置文件不存在'
+      });
+    }
+    
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const configJson = JSON.parse(configData);
+    
+    // 定义配置项分类和显示规则
+    const categories = {
+      server: {
+        title: '服务器配置',
+        icon: '🖥️',
+        items: {
+          'server.port': { label: '端口号', type: 'number', description: '服务器监听端口' },
+          'server.host': { label: '主机地址', type: 'text', description: '服务器绑定地址' },
+          'server.env': { label: '运行环境', type: 'select', options: ['development', 'production', 'test'], description: '应用运行环境' }
+        }
+      },
+      database: {
+        title: 'Redis配置',
+        icon: '🗄️',
+        items: {
+          'redis.host': { label: 'Redis主机', type: 'text', description: 'Redis服务器地址' },
+          'redis.port': { label: 'Redis端口', type: 'number', description: 'Redis服务器端口' },
+          'redis.db': { label: '数据库编号', type: 'number', description: 'Redis数据库编号' },
+          'redis.keyPrefix': { label: '键前缀', type: 'text', description: 'Redis键名前缀' }
+        }
+      },
+      onebot: {
+        title: 'OneBot配置',
+        icon: '🤖',
+        items: {
+          'onebot.mode': { label: '连接模式', type: 'select', options: ['reverse_ws', 'forward_ws', 'http_post', 'http_api'], description: '主要连接模式' },
+          
+          // 反向WebSocket配置
+          'onebot.connections.reverse_ws.enabled': { label: '反向WebSocket启用', type: 'boolean', description: '启用反向WebSocket服务器' },
+          'onebot.connections.reverse_ws.port': { label: '反向WebSocket端口', type: 'number', description: '反向WebSocket监听端口' },
+          'onebot.connections.reverse_ws.path': { label: '反向WebSocket路径', type: 'text', description: '反向WebSocket连接路径' },
+          'onebot.connections.reverse_ws.accessToken': { label: '反向WebSocket访问令牌', type: 'text', description: '反向WebSocket连接访问令牌，用于身份验证' },
+          'onebot.connections.reverse_ws.heartbeatInterval': { label: '反向WebSocket心跳间隔', type: 'number', description: '反向WebSocket心跳检测间隔时间(毫秒)，范围1000-300000' },
+          'onebot.connections.reverse_ws.maxConnections': { label: '反向WebSocket最大连接数', type: 'number', description: '反向WebSocket最大并发连接数' },
+          
+          // 正向WebSocket配置
+          'onebot.connections.forward_ws.enabled': { label: '正向WebSocket启用', type: 'boolean', description: '启用正向WebSocket客户端' },
+          'onebot.connections.forward_ws.url': { label: '正向WebSocket地址', type: 'text', description: '正向WebSocket连接地址' },
+          'onebot.connections.forward_ws.accessToken': { label: '正向WebSocket访问令牌', type: 'text', description: '正向WebSocket连接访问令牌，用于身份验证' },
+          'onebot.connections.forward_ws.heartbeatInterval': { label: '正向WebSocket心跳间隔', type: 'number', description: '正向WebSocket心跳检测间隔时间(毫秒)，范围1000-300000' },
+          'onebot.connections.forward_ws.reconnectInterval': { label: '正向WebSocket重连间隔', type: 'number', description: '正向WebSocket重连间隔(毫秒)' },
+          'onebot.connections.forward_ws.maxReconnectAttempts': { label: '正向WebSocket最大重连次数', type: 'number', description: '正向WebSocket最大重连尝试次数' },
+          'onebot.connections.forward_ws.connectionTimeout': { label: '正向WebSocket连接超时', type: 'number', description: '正向WebSocket连接超时时间(毫秒)' },
+          
+          // HTTP POST配置
+          'onebot.connections.http_post.enabled': { label: 'HTTP POST启用', type: 'boolean', description: '启用HTTP POST上报' },
+          'onebot.connections.http_post.url': { label: 'HTTP POST地址', type: 'text', description: 'HTTP POST上报地址' },
+          'onebot.connections.http_post.accessToken': { label: 'HTTP POST访问令牌', type: 'text', description: 'HTTP POST请求访问令牌，用于身份验证' },
+          'onebot.connections.http_post.timeout': { label: 'HTTP POST超时', type: 'number', description: 'HTTP POST请求超时时间(毫秒)' },
+          'onebot.connections.http_post.retryAttempts': { label: 'HTTP POST重试次数', type: 'number', description: 'HTTP POST请求失败重试次数' },
+          'onebot.connections.http_post.retryInterval': { label: 'HTTP POST重试间隔', type: 'number', description: 'HTTP POST请求重试间隔时间(毫秒)' },
+          
+          // HTTP API配置
+          'onebot.connections.http_api.enabled': { label: 'HTTP API启用', type: 'boolean', description: '启用HTTP API服务器' },
+          'onebot.connections.http_api.host': { label: 'HTTP API主机', type: 'text', description: 'HTTP API服务器主机地址' },
+          'onebot.connections.http_api.port': { label: 'HTTP API端口', type: 'number', description: 'HTTP API服务器端口' },
+          'onebot.connections.http_api.accessToken': { label: 'HTTP API访问令牌', type: 'text', description: 'HTTP API服务器访问令牌，用于身份验证' },
+          'onebot.connections.http_api.timeout': { label: 'HTTP API超时', type: 'number', description: 'HTTP API请求超时时间(毫秒)' },
+          'onebot.connections.http_api.maxConnections': { label: 'HTTP API最大连接数', type: 'number', description: 'HTTP API服务器最大并发连接数' }
+        }
+      },
+      plugins: {
+        title: '插件配置',
+        icon: '🔌',
+        items: {
+          'plugins.dir': { label: '插件目录', type: 'text', description: '插件存放目录' },
+          'plugins.autoLoad': { label: '自动加载', type: 'boolean', description: '启动时自动加载插件' },
+          'plugins.hotReload': { label: '热重载', type: 'boolean', description: '支持插件热重载' },
+          'plugins.maxLoadTime': { label: '最大加载时间', type: 'number', description: '插件最大加载时间(毫秒)' }
+        }
+      },
+      security: {
+        title: '安全配置',
+        icon: '🔒',
+        items: {
+          'security.jwtExpiration': { label: 'JWT过期时间', type: 'text', description: 'JWT令牌过期时间' },
+          'security.bcryptRounds': { label: '密码加密轮数', type: 'number', description: 'bcrypt加密轮数' },
+          'security.rateLimitWindow': { label: '限流窗口', type: 'number', description: '速率限制时间窗口(毫秒)' },
+          'security.rateLimitMax': { label: '限流次数', type: 'number', description: '时间窗口内最大请求次数' }
+        }
+      },
+      logging: {
+        title: '日志配置',
+        icon: '📝',
+        items: {
+          'logging.level': { label: '日志级别', type: 'select', options: ['error', 'warn', 'info', 'debug'], description: '日志记录级别' },
+          'logging.dir': { label: '日志目录', type: 'text', description: '日志文件存放目录' },
+          'logging.maxSize': { label: '最大文件大小', type: 'text', description: '单个日志文件最大大小' },
+          'logging.maxFiles': { label: '最大文件数', type: 'number', description: '保留的日志文件数量' }
+        }
+      },
+      monitoring: {
+        title: '监控配置',
+        icon: '📊',
+        items: {
+          'monitoring.enabled': { label: '启用监控', type: 'boolean', description: '是否启用系统监控' },
+          'monitoring.interval': { label: '监控间隔', type: 'number', description: '监控数据收集间隔(毫秒)' },
+          'monitoring.metricsRetention': { label: '指标保留时间', type: 'number', description: '监控指标保留时间(毫秒)' }
+        }
+      },
+      upload: {
+        title: '上传配置',
+        icon: '📁',
+        items: {
+          'upload.maxSize': { label: '最大文件大小', type: 'number', description: '上传文件最大大小(字节)' },
+          'upload.dir': { label: '上传目录', type: 'text', description: '文件上传存储目录' },
+          'upload.urlPrefix': { label: 'URL前缀', type: 'text', description: '上传文件访问URL前缀' }
+        }
+      }
+    };
+    
+    // 定义敏感配置项列表
+     const sensitiveKeys = [
+       'security.jwtSecret',
+       'redis.password',
+       'database.password',
+       'smtp.password',
+       'api.secretKey',
+       'encryption.key',
+       'oauth.clientSecret'
+     ];
+     
+     // 定义目录配置项列表
+     const directoryKeys = [
+       'plugins.dir',
+       'upload.dir',
+       'logging.dir',
+       'data.dir'
+     ];
+     
+     // 获取配置值并隐藏敏感信息
+     const result = {};
+     for (const [categoryKey, category] of Object.entries(categories)) {
+       result[categoryKey] = {
+         title: category.title,
+         icon: category.icon,
+         items: {}
+       };
+       
+       for (const [itemKey, itemConfig] of Object.entries(category.items)) {
+         // 跳过敏感配置项和目录配置项
+         if (sensitiveKeys.includes(itemKey) || directoryKeys.includes(itemKey)) {
+           continue;
+         }
+         
+         const value = getConfigValue(configJson, itemKey);
+         result[categoryKey].items[itemKey] = {
+           ...itemConfig,
+           value: value
+         };
+       }
+     }
+    
+    res.json({
+      success: true,
+      data: result
+    });
+  } catch (error) {
+    logger.error('获取分类配置错误:', error);
+    res.status(500).json({
+      error: 'Failed to get categorized configuration'
+    });
+  }
+});
+
+// 更新单个配置项
+router.post('/config/item', authenticateToken, (req, res) => {
+  try {
+    const { key, value } = req.body;
+    
+    if (!key) {
+      return res.status(400).json({
+        error: '配置项键名不能为空'
+      });
+    }
+    
+    // 定义敏感配置项列表，在前端隐藏
+    const sensitiveKeys = [
+      'security.jwtSecret',
+      'redis.password', 
+      'database.password',
+      'smtp.password',
+      'api.secretKey',
+      'encryption.key',
+      'oauth.clientSecret'
+    ];
+    
+    // 定义目录配置项列表，在前端隐藏
+    const directoryKeys = [
+      'plugins.dir',
+      'upload.dir',
+      'logging.dir',
+      'data.dir'
+    ];
+    
+    // 检查是否为敏感配置项
+    if (sensitiveKeys.includes(key)) {
+      return res.status(403).json({
+        error: '禁止修改敏感配置项，请直接编辑配置文件'
+      });
+    }
+    
+    // 定义只读配置项列表
+    const readOnlyKeys = [
+      'server.version',
+      'system.platform',
+      'system.nodeVersion'
+    ];
+    
+    // 检查是否为只读配置项
+    if (readOnlyKeys.includes(key)) {
+      return res.status(403).json({
+        error: '该配置项为只读，无法修改'
+      });
+    }
+    
+    const configPath = path.join(process.cwd(), 'config', 'config.json');
+    
+    if (!fs.existsSync(configPath)) {
+      return res.status(404).json({
+        error: '配置文件不存在'
+      });
+    }
+    
+    // 读取当前配置
+    const configData = fs.readFileSync(configPath, 'utf8');
+    const configJson = JSON.parse(configData);
+    
+    // OneBot连接配置验证
+    if (key.startsWith('onebot.connections.') && key.endsWith('.enabled') && value === true) {
+      const validationResult = validateOnebotConnectionConfig(configJson, key);
+      if (!validationResult.valid) {
+        return res.status(400).json({
+          error: validationResult.message
+        });
+      }
+    }
+    
+    // 更新配置项
+    setConfigValue(configJson, key, value);
+
+    // 写入新配置
+    fs.writeFileSync(configPath, JSON.stringify(configJson, null, 2));
+
+    res.json({
+      success: true,
+      message: '配置项更新成功'
+    });
+
+    logger.info(`配置项 ${key} 已更新`);
+    
+  } catch (error) {
+    logger.error('更新配置项错误:', error);
+    res.status(500).json({
+      error: 'Failed to update configuration item'
+    });
+  }
+});
+
+// OneBot连接配置验证函数
+function validateOnebotConnectionConfig(config, enabledKey) {
+  const connectionTypes = ['reverse_ws', 'forward_ws', 'http_api', 'http_post'];
+  const enabledConnections = [];
+  
+  // 检查当前已启用的连接
+  for (const type of connectionTypes) {
+    const configKey = `onebot.connections.${type}.enabled`;
+    if (configKey === enabledKey) {
+      // 这是即将启用的连接
+      enabledConnections.push(type);
+    } else if (getConfigValue(config, configKey) === true) {
+      enabledConnections.push(type);
+    }
+  }
+  
+  if (enabledConnections.length > 1) {
+    return {
+      valid: false,
+      message: `OneBot连接配置冲突：检测到多个连接类型同时启用 (${enabledConnections.join(', ')})。每次只能启用一个连接类型，请先禁用其他连接。`
+    };
+  }
+  
+  return { valid: true };
 }
 
-// 认证路由
-router.post('/auth/login', loginLimiter, async (req, res) => {
-    try {
-        const { username, password } = req.body;
-        
-        if (!username || !password) {
-            return res.status(400).json({ 
-                success: false, 
-                message: '用户名和密码不能为空' 
-            });
-        }
-        
-        // 获取管理员凭据
-        const adminUsername = process.env.ADMIN_USERNAME || 'admin';
-        const adminPassword = process.env.ADMIN_PASSWORD || 'admin123';
-        
-        // 调试：检查config对象
-        console.log('Config object type:', typeof config);
-        console.log('Config get method:', typeof config.get);
-        console.log('Logger object type:', typeof logger);
-        console.log('Logger info method:', typeof logger.info);
-        
-        // 验证用户名和密码
-        if (username !== adminUsername || password !== adminPassword) {
-            logger.warn('登录失败', { username, ip: req.ip });
-            return res.status(401).json({ 
-                success: false, 
-                error: 'Login failed',
-                message: '用户名或密码错误' 
-            });
-        }
-        
-        // 生成JWT令牌
-        const token = jwt.sign(
-            { username, role: 'admin' },
-            config.get('security.jwtSecret'),
-            { expiresIn: config.get('security.jwtExpiration', '24h') }
-        );
-        
-        logger.info('用户登录成功', { username, ip: req.ip });
-        
-        res.json({
-            success: true,
-            token,
-            user: { username, role: 'admin' }
-        });
-        
-    } catch (error) {
-        logger.error('登录处理错误:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '服务器内部错误' 
-        });
+// 辅助函数：获取嵌套配置值
+function getConfigValue(config, path) {
+  const keys = path.split('.');
+  let value = config;
+  
+  for (const key of keys) {
+    if (value && typeof value === 'object' && key in value) {
+      value = value[key];
+    } else {
+      return undefined;
     }
-});
+  }
+  
+  return value;
+}
 
-// 验证令牌
-router.get('/auth/verify', authenticateToken, (req, res) => {
-    res.json({
-        success: true,
-        user: req.user
-    });
-});
-
-// 以下所有路由都需要认证
-router.use(authenticateToken);
-
-// 系统状态API
-router.get('/system/status', async (req, res) => {
-    try {
-        const app = req.app;
-        const pluginManager = app.get('pluginManager');
-        const taskScheduler = app.get('taskScheduler');
-        const onebotCore = app.get('onebotCore');
-        const redisManager = app.get('redisManager');
-        
-        // 获取系统信息
-        const memoryUsage = process.memoryUsage();
-        const uptime = process.uptime();
-        
-        // 获取插件数量
-        const plugins = pluginManager ? await pluginManager.getPlugins() : [];
-        const enabledPlugins = plugins.filter(p => p.enabled);
-        
-        // 获取任务数量
-        const tasks = taskScheduler ? await taskScheduler.getTasks() : [];
-        const runningTasks = tasks.filter(t => t.enabled);
-        
-        // 获取连接数量
-        const connections = onebotCore ? onebotCore.getConnections() : [];
-        
-        // 检查Redis连接
-        const redisConnected = redisManager ? await redisManager.ping() : false;
-        
-        const status = {
-            status: redisConnected ? '正常' : '异常',
-            version: require('../../../package.json').version,
-            uptime: Math.floor(uptime),
-            memoryUsage: memoryUsage.heapUsed,
-            nodeVersion: process.version,
-            pluginCount: enabledPlugins.length,
-            taskCount: runningTasks.length,
-            connectionCount: connections.length,
-            redis: redisConnected
-        };
-        
-        res.json({ success: true, data: status });
-        
-    } catch (error) {
-        logger.error('获取系统状态失败:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '获取系统状态失败' 
-        });
+// 辅助函数：设置嵌套配置值
+function setConfigValue(config, path, value) {
+  const keys = path.split('.');
+  let current = config;
+  
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    if (!(key in current) || typeof current[key] !== 'object') {
+      current[key] = {};
     }
-});
+    current = current[key];
+  }
+  
+  const lastKey = keys[keys.length - 1];
+  current[lastKey] = value;
+}
 
-// 插件管理API
-router.get('/plugins', async (req, res) => {
-    try {
-        const pluginManager = req.app.get('pluginManager');
-        
-        if (!pluginManager) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '插件管理器未初始化' 
-            });
-        }
-        
-        const plugins = await pluginManager.getPlugins();
-        res.json({ success: true, data: plugins });
-        
-    } catch (error) {
-        logger.error('获取插件列表失败:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '获取插件列表失败' 
-        });
-    }
-});
-
-router.post('/plugins/:id/enable', async (req, res) => {
-    try {
-        const pluginManager = req.app.get('pluginManager');
-        const { id } = req.params;
-        
-        if (!pluginManager) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '插件管理器未初始化' 
-            });
-        }
-        
-        await pluginManager.enablePlugin(id);
-        logger.info(`插件已启用: ${id}`, { user: req.user.username });
-        
-        res.json({ success: true, message: '插件已启用' });
-        
-    } catch (error) {
-        logger.error(`启用插件失败: ${req.params.id}`, error);
-        res.status(500).json({ 
-            success: false, 
-            message: '启用插件失败' 
-        });
-    }
-});
-
-router.post('/plugins/:id/disable', async (req, res) => {
-    try {
-        const pluginManager = req.app.get('pluginManager');
-        const { id } = req.params;
-        
-        if (!pluginManager) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '插件管理器未初始化' 
-            });
-        }
-        
-        await pluginManager.disablePlugin(id);
-        logger.info(`插件已禁用: ${id}`, { user: req.user.username });
-        
-        res.json({ success: true, message: '插件已禁用' });
-        
-    } catch (error) {
-        logger.error(`禁用插件失败: ${req.params.id}`, error);
-        res.status(500).json({ 
-            success: false, 
-            message: '禁用插件失败' 
-        });
-    }
-});
-
-router.post('/plugins/:id/reload', async (req, res) => {
-    try {
-        const pluginManager = req.app.get('pluginManager');
-        const { id } = req.params;
-        
-        if (!pluginManager) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '插件管理器未初始化' 
-            });
-        }
-        
-        await pluginManager.reloadPlugin(id);
-        logger.info(`插件已重载: ${id}`, { user: req.user.username });
-        
-        res.json({ success: true, message: '插件已重载' });
-        
-    } catch (error) {
-        logger.error(`重载插件失败: ${req.params.id}`, error);
-        res.status(500).json({ 
-            success: false, 
-            message: '重载插件失败' 
-        });
-    }
-});
-
-// 定时任务API
-router.get('/tasks', async (req, res) => {
-    try {
-        const taskScheduler = req.app.get('taskScheduler');
-        
-        if (!taskScheduler) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '任务调度器未初始化' 
-            });
-        }
-        
-        const tasks = await taskScheduler.getTasks();
-        res.json({ success: true, data: tasks });
-        
-    } catch (error) {
-        logger.error('获取任务列表失败:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '获取任务列表失败' 
-        });
-    }
-});
-
-router.post('/tasks/:id/start', async (req, res) => {
-    try {
-        const taskScheduler = req.app.get('taskScheduler');
-        const { id } = req.params;
-        
-        if (!taskScheduler) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '任务调度器未初始化' 
-            });
-        }
-        
-        await taskScheduler.enableTask(id);
-        logger.info(`任务已启动: ${id}`, { user: req.user.username });
-        
-        res.json({ success: true, message: '任务已启动' });
-        
-    } catch (error) {
-        logger.error(`启动任务失败: ${req.params.id}`, error);
-        res.status(500).json({ 
-            success: false, 
-            message: '启动任务失败' 
-        });
-    }
-});
-
-router.post('/tasks/:id/stop', async (req, res) => {
-    try {
-        const taskScheduler = req.app.get('taskScheduler');
-        const { id } = req.params;
-        
-        if (!taskScheduler) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '任务调度器未初始化' 
-            });
-        }
-        
-        await taskScheduler.disableTask(id);
-        logger.info(`任务已停止: ${id}`, { user: req.user.username });
-        
-        res.json({ success: true, message: '任务已停止' });
-        
-    } catch (error) {
-        logger.error(`停止任务失败: ${req.params.id}`, error);
-        res.status(500).json({ 
-            success: false, 
-            message: '停止任务失败' 
-        });
-    }
-});
-
-router.post('/tasks/:id/run', async (req, res) => {
-    try {
-        const taskScheduler = req.app.get('taskScheduler');
-        const { id } = req.params;
-        
-        if (!taskScheduler) {
-            return res.status(503).json({ 
-                success: false, 
-                message: '任务调度器未初始化' 
-            });
-        }
-        
-        await taskScheduler.runTask(id);
-        logger.info(`任务已手动执行: ${id}`, { user: req.user.username });
-        
-        res.json({ success: true, message: '任务已触发执行' });
-        
-    } catch (error) {
-        logger.error(`执行任务失败: ${req.params.id}`, error);
-        res.status(500).json({ 
-            success: false, 
-            message: '执行任务失败' 
-        });
-    }
-});
-
-// Onebot状态API
-router.get('/onebot/status', async (req, res) => {
-    try {
-        const onebotCore = req.app.get('onebotCore');
-        const wsManager = req.app.get('wsManager');
-        
-        const status = {
-            wsServer: {
-                running: onebotCore ? onebotCore.isRunning() : false,
-                port: config.get('onebot.wsPort', 8080),
-                connections: onebotCore ? onebotCore.getConnections().length : 0
-            },
-            httpServer: {
-                running: onebotCore ? onebotCore.isRunning() : false,
-                port: config.get('onebot.httpPort', 5700)
-            },
-            connections: onebotCore ? onebotCore.getConnections().map(conn => ({
-                id: conn.id,
-                connectedAt: conn.connectedAt,
-                lastHeartbeat: conn.lastHeartbeat
-            })) : []
-        };
-        
-        res.json({ success: true, data: status });
-        
-    } catch (error) {
-        logger.error('获取Onebot状态失败:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '获取Onebot状态失败' 
-        });
-    }
-});
-
-// 配置管理API
-router.get('/config', async (req, res) => {
-    try {
-        const currentConfig = {
-            server: {
-                port: config.get('server.port'),
-                wsPort: config.get('server.wsPort')
-            },
-            redis: {
-                host: config.get('redis.host'),
-                port: config.get('redis.port')
-            },
-            onebot: {
-                accessToken: config.get('onebot.accessToken'),
-                heartbeatInterval: config.get('onebot.heartbeatInterval')
-            }
-        };
-        
-        res.json({ success: true, data: currentConfig });
-        
-    } catch (error) {
-        logger.error('获取配置失败:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '获取配置失败' 
-        });
-    }
-});
-
-router.post('/config', async (req, res) => {
-    try {
-        const newConfig = req.body;
-        
-        // 验证配置格式
-        if (!newConfig || typeof newConfig !== 'object') {
-            return res.status(400).json({ 
-                success: false, 
-                message: '配置格式无效' 
-            });
-        }
-        
-        // 更新配置
-        for (const [section, values] of Object.entries(newConfig)) {
-            if (values && typeof values === 'object') {
-                for (const [key, value] of Object.entries(values)) {
-                    config.set(`${section}.${key}`, value);
-                }
-            }
-        }
-        
-        // 保存配置
-        await config.save();
-        
-        logger.info('配置已更新', { user: req.user.username, config: newConfig });
-        
-        res.json({ success: true, message: '配置已保存' });
-        
-    } catch (error) {
-        logger.error('保存配置失败:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '保存配置失败' 
-        });
-    }
-});
-
-// 日志API
-router.get('/logs', async (req, res) => {
-    try {
-        const { level = 'info', limit = 100 } = req.query;
-        
-        // 这里应该从日志文件或数据库中读取日志
-        // 暂时返回模拟数据
-        const logs = [
-            {
-                timestamp: new Date().toISOString(),
-                level: 'info',
-                message: '系统启动完成'
-            },
-            {
-                timestamp: new Date(Date.now() - 60000).toISOString(),
-                level: 'info',
-                message: 'Redis连接已建立'
-            },
-            {
-                timestamp: new Date(Date.now() - 120000).toISOString(),
-                level: 'info',
-                message: 'Onebot服务已启动'
-            }
-        ];
-        
-        res.json({ success: true, data: logs });
-        
-    } catch (error) {
-        logger.error('获取日志失败:', error);
-        res.status(500).json({ 
-            success: false, 
-            message: '获取日志失败' 
-        });
-    }
-});
-
-// 错误处理中间件
-router.use((error, req, res, next) => {
-    logger.error('API错误:', error);
+// 更新配置文件
+router.post('/config', authenticateToken, (req, res) => {
+  try {
+    const { config: newConfig } = req.body;
     
-    res.status(500).json({
-        success: false,
-        message: '服务器内部错误'
+    if (!newConfig) {
+      return res.status(400).json({
+        error: '配置数据不能为空'
+      });
+    }
+    
+    const configPath = path.join(process.cwd(), 'config', 'config.json');
+    
+    // 写入新配置
+    fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+
+    res.json({
+      success: true,
+      message: '配置文件更新成功'
     });
+
+    logger.info(`配置文件已更新`);
+    
+  } catch (error) {
+    logger.error('更新配置文件错误:', error);
+    res.status(500).json({
+      error: 'Failed to update configuration'
+    });
+  }
+});
+
+// 系统状态
+router.get('/system/status', authenticateToken, (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      server: {
+        uptime: process.uptime(),
+        memory: process.memoryUsage(),
+        version: process.version,
+        platform: process.platform
+      },
+      config: {
+        environment: process.env.NODE_ENV || 'development',
+        port: process.env.PORT || 3000
+      },
+      timestamp: new Date().toISOString()
+    }
+  });
+});
+
+// 健康检查
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// 错误处理
+router.use((err, req, res, next) => {
+  logger.error('API路由错误:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: err.message
+  });
 });
 
 module.exports = router;

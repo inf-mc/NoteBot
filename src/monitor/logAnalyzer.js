@@ -60,9 +60,9 @@ class LogAnalyzer extends EventEmitter {
             ]
         };
         this.alerts = {
-            errorThreshold: 10, // 每分钟错误数阈值
-            warningThreshold: 20, // 每分钟警告数阈值
-            timeWindow: 60000, // 1分钟时间窗口
+            errorThreshold: config.get('logAnalyzer.errorThreshold', 50), // 每分钟错误数阈值
+            warningThreshold: config.get('logAnalyzer.warningThreshold', 100), // 每分钟警告数阈值
+            timeWindow: config.get('logAnalyzer.timeWindow', 60000), // 1分钟时间窗口
             recentErrors: [],
             recentWarnings: []
         };

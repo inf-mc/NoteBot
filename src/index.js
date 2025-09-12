@@ -31,20 +31,20 @@ process.on('unhandledRejection', (reason, promise) => {
   process.exit(1);
 });
 
-// 优雅关闭处理
-process.on('SIGTERM', async () => {
-  logger.info('NoteBot 收到 SIGTERM 信号，正在关闭...');
-  await Application.shutdown();
-  logger.info('NoteBot 已关闭');
-  process.exit(0);
-});
+// 信号处理由 Application 类统一管理
+// process.on('SIGTERM', async () => {
+//   logger.info('NoteBot 收到 SIGTERM 信号，正在关闭...');
+//   await Application.shutdown();
+//   logger.info('NoteBot 已关闭');
+//   process.exit(0);
+// });
 
-process.on('SIGINT', async () => {
-  logger.info('NoteBot 收到 SIGINT 信号，正在关闭...');
-  await Application.shutdown();
-  logger.info('NoteBot 已关闭');
-  process.exit(0);
-});
+// process.on('SIGINT', async () => {
+//   logger.info('NoteBot 收到 SIGINT 信号，正在关闭...');
+//   await Application.shutdown();
+//   logger.info('NoteBot 已关闭');
+//   process.exit(0);
+// });
 
 // 启动应用程序
 async function start() {
