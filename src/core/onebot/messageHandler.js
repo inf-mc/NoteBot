@@ -33,8 +33,23 @@ class MessageHandler {
     // 私聊消息处理
     this.registerHandler('message.private', async (data) => {
       const { message } = data;
-      logger.info(`收到私聊消息 [${message.user_id}]: ${message.raw_message}`);
-      
+      logger.info(`[NoteBot] <- 私聊 [${message.user_id}] ${message.raw_message}`);
+      /*
+      // 详细消息日志
+      logger.info('OneBot]:', {
+        messageId: message.message_id,
+        userId: message.user_id,
+        time: new Date(message.time * 1000).toLocaleString(),
+        rawMessage: message.raw_message,
+        message: message.message,
+        sender: message.sender,
+        postType: message.post_type,
+        messageType: message.message_type,
+        subType: message.sub_type,
+        font: message.font,
+        rawData: JSON.stringify(message, null, 2)
+      });
+      */
       // 触发插件事件
       await this.pluginManager.emit('private_message', {
         userId: message.user_id,
@@ -49,8 +64,46 @@ class MessageHandler {
     // 群消息处理
     this.registerHandler('message.group', async (data) => {
       const { message } = data;
-      logger.info(`收到群消息 [${message.group_id}][${message.user_id}]: ${message.raw_message}`);
       
+      // 获取群信息和用户昵称
+      let groupName = message.group_id;
+      let userName = message.user_id;
+      
+      try {
+        // 尝试获取群信息
+        const groupInfo = await this.onebot.callApi('get_group_info', { group_id: message.group_id });
+        if (groupInfo && groupInfo.group_name) {
+          groupName = `${groupInfo.group_name}(${message.group_id})`;
+        }
+      } catch (error) {
+        logger.debug('获取群信息失败:', error.message);
+      }
+      
+      // 从sender中获取用户昵称
+      if (message.sender && message.sender.nickname) {
+        userName = `${message.sender.nickname}(${message.user_id})`;
+      } else if (message.sender && message.sender.card) {
+        userName = `${message.sender.card}(${message.user_id})`;
+      }
+      
+      logger.info(`[NoteBot] <- 群聊 [${groupName}] [${userName}] ${message.raw_message}`);
+      /*
+      // 详细消息日志
+      logger.info('OneBot群消息详情:', {
+        messageId: message.message_id,
+        groupId: message.group_id,
+        userId: message.user_id,
+        time: new Date(message.time * 1000).toLocaleString(),
+        rawMessage: message.raw_message,
+        message: message.message,
+        sender: message.sender,
+        postType: message.post_type,
+        messageType: message.message_type,
+        subType: message.sub_type,
+        font: message.font,
+        rawData: JSON.stringify(message, null, 2)
+      });
+      */
       // 触发插件事件
       await this.pluginManager.emit('group_message', {
         groupId: message.group_id,
@@ -136,12 +189,20 @@ class MessageHandler {
   /**
    * 处理接收到的消息
    */
-  async handleMessage(data) {
-    const { message } = data;
-    
+  async handleMessage(message) {
     try {
+      // 记录所有OneBot收到的原始消息
+      /*
+      logger.info('OneBot收到消息:', {
+        timestamp: new Date().toLocaleString(),
+        messageType: this.getMessageType(message),
+        postType: message.post_type,
+        rawData: JSON.stringify(message, null, 2)
+      });
+      */
       // 应用消息过滤器
       if (!this.applyFilters(message)) {
+        logger.debug('消息被过滤器拦截');
         return;
       }
 
@@ -151,7 +212,7 @@ class MessageHandler {
       // 查找对应的处理器
       const handler = this.eventHandlers.get(messageType);
       if (handler) {
-        await handler(data);
+        await handler({ message });
       } else {
         logger.debug(`未找到处理器: ${messageType}`);
       }
@@ -160,7 +221,7 @@ class MessageHandler {
       await this.pluginManager.emit('any_message', {
         type: messageType,
         data: message,
-        timestamp: data.timestamp
+        timestamp: Date.now()
       });
       
     } catch (error) {

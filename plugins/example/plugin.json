@@ -5,7 +5,13 @@
   "author": "NoteBot Team",
   "license": "MIT",
   "main": "index.js",
-  "keywords": ["example", "demo", "tutorial", "bot", "plugin"],
+  "keywords": [
+    "example",
+    "demo",
+    "tutorial",
+    "bot",
+    "plugin"
+  ],
   "repository": {
     "type": "git",
     "url": "https://github.com/notebot/plugins"
@@ -22,7 +28,11 @@
     "minCoreVersion": "1.0.0",
     "maxCoreVersion": "2.0.0",
     "category": "utility",
-    "tags": ["example", "demo", "tutorial"],
+    "tags": [
+      "example",
+      "demo",
+      "tutorial"
+    ],
     "permissions": {
       "required": [
         "message.send",
@@ -251,31 +261,44 @@
         "name": "help",
         "description": "显示帮助信息",
         "usage": "/help",
-        "aliases": ["h", "帮助"]
+        "aliases": [
+          "h",
+          "帮助"
+        ]
       },
       {
         "name": "ping",
         "description": "测试响应时间",
         "usage": "/ping",
-        "aliases": ["p"]
+        "aliases": [
+          "p"
+        ]
       },
       {
         "name": "stats",
         "description": "显示插件统计信息",
         "usage": "/stats",
-        "aliases": ["统计", "stat"]
+        "aliases": [
+          "统计",
+          "stat"
+        ]
       },
       {
         "name": "echo",
         "description": "回显消息",
         "usage": "/echo <消息内容>",
-        "aliases": ["回显"]
+        "aliases": [
+          "回显"
+        ]
       },
       {
         "name": "time",
         "description": "显示当前时间",
         "usage": "/time",
-        "aliases": ["时间", "t"]
+        "aliases": [
+          "时间",
+          "t"
+        ]
       }
     ],
     "events": [
@@ -322,5 +345,7 @@
         "description": "每10分钟报告统计信息"
       }
     ]
-  }
+  },
+  "path": "D:\\test\\NoteBot\\plugins\\example",
+  "enabled": true
 }

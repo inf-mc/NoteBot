@@ -26,7 +26,7 @@ class ExamplePlugin extends BasePlugin {
     async initialize() {
         await super.initialize();
         
-        logger.info(`Example plugin initialized at ${new Date().toISOString()}`);
+        logger.info(`Example plugin initialized at ${new Date().toISOString()} - 热重载测试修复完成`); // 测试热重载修复
         
         // 注册消息处理器
         this.registerMessageHandler('private', this.handlePrivateMessage.bind(this));
@@ -47,6 +47,21 @@ class ExamplePlugin extends BasePlugin {
         await this.initializeData();
         
         this.emit('initialized');
+    }
+
+    /**
+     * 获取机器人ID
+     */
+    async getBotId() {
+        try {
+            if (this.context?.onebot) {
+                const loginInfo = await this.context.onebot.getLoginInfo();
+                return loginInfo?.user_id?.toString();
+            }
+        } catch (error) {
+            logger.warn('Failed to get bot ID:', error);
+        }
+        return null;
     }
 
     /**
@@ -82,20 +97,36 @@ class ExamplePlugin extends BasePlugin {
     /**
      * 处理私聊消息
      */
-    async handlePrivateMessage(message) {
+    async handlePrivateMessage(data) {
         try {
             this.messageCount++;
             
             // 更新统计
             await this.updateStats('privateMessages');
             
-            const { user_id, raw_message } = message;
+            // 适配新的数据结构
+            const user_id = data.userId;
+            const raw_message = data.message;
+            const message = data.rawData || data;
+            
+            // 检查消息内容是否存在
+            if (!raw_message) {
+                logger.warn(`Received empty message from ${user_id}`);
+                return;
+            }
             
             logger.info(`Received private message from ${user_id}: ${raw_message}`);
             
             // 检查用户是否被禁用
-            const config = await this.getData('config');
-            if (config.bannedUsers.includes(user_id)) {
+            const config = await this.getData('config') || {
+                allowedGroups: [],
+                bannedUsers: [],
+                welcomeMessage: '你好！欢迎使用示例插件！'
+            };
+            const bannedUsers = config.bannedUsers || [];
+            const welcomeMessage = config.welcomeMessage || '你好！欢迎使用示例插件！';
+            
+            if (bannedUsers.includes(user_id)) {
                 logger.warn(`Ignored message from banned user: ${user_id}`);
                 return;
             }
@@ -108,10 +139,10 @@ class ExamplePlugin extends BasePlugin {
             
             // 简单的回复逻辑
             if (raw_message.includes('你好') || raw_message.includes('hello')) {
-                await this.sendPrivateMessage(user_id, config.welcomeMessage);
+                await this.api.sendPrivateMessage(user_id, welcomeMessage);
             } else if (raw_message.includes('时间')) {
                 const now = new Date().toLocaleString('zh-CN');
-                await this.sendPrivateMessage(user_id, `当前时间：${now}`);
+                await this.api.sendPrivateMessage(user_id, `当前时间：${now}`);
             } else if (raw_message.includes('统计')) {
                 const stats = await this.getStats();
                 const statsMessage = `插件统计信息：\n` +
@@ -119,7 +150,7 @@ class ExamplePlugin extends BasePlugin {
                     `私聊消息：${stats.privateMessages}\n` +
                     `群聊消息：${stats.groupMessages}\n` +
                     `运行时间：${this.getUptime()}`;
-                await this.sendPrivateMessage(user_id, statsMessage);
+                await this.api.sendPrivateMessage(user_id, statsMessage);
             }
             
         } catch (error) {
@@ -130,32 +161,52 @@ class ExamplePlugin extends BasePlugin {
     /**
      * 处理群聊消息
      */
-    async handleGroupMessage(message) {
+    async handleGroupMessage(data) {
         try {
             this.messageCount++;
             
             // 更新统计
             await this.updateStats('groupMessages');
             
-            const { group_id, user_id, raw_message } = message;
+            // 适配新的数据结构
+            const group_id = data.groupId;
+            const user_id = data.userId;
+            const raw_message = data.message;
+            const message = data.rawData || data;
+            
+            // 检查消息内容是否存在
+            if (!raw_message) {
+                logger.warn(`Received empty message from ${user_id} in ${group_id}`);
+                return;
+            }
             
             logger.debug(`Received group message from ${user_id} in ${group_id}: ${raw_message}`);
             
             // 检查群组是否允许
-            const config = await this.getData('config');
-            if (config.allowedGroups.length > 0 && !config.allowedGroups.includes(group_id)) {
+            const config = await this.getData('config') || {
+                allowedGroups: [],
+                bannedUsers: []
+            };
+            const allowedGroups = config.allowedGroups || [];
+            const bannedUsers = config.bannedUsers || [];
+            
+            if (allowedGroups.length > 0 && !allowedGroups.includes(group_id)) {
                 return;
             }
             
             // 检查用户是否被禁用
-            if (config.bannedUsers.includes(user_id)) {
+            if (bannedUsers.includes(user_id)) {
                 return;
             }
             
             // 处理 @ 消息
-            if (raw_message.includes('[CQ:at,qq=') && raw_message.includes(this.botId)) {
-                await this.handleAtMessage(message);
-                return;
+            if (raw_message.includes('[CQ:at,qq=')) {
+                // 获取机器人ID
+                const botId = this.context?.onebot?.botId || await this.getBotId();
+                if (botId && raw_message.includes(botId)) {
+                    await this.handleAtMessage(message);
+                    return;
+                }
             }
             
             // 处理命令
@@ -195,9 +246,9 @@ class ExamplePlugin extends BasePlugin {
                 const responseTime = Date.now() - message.time * 1000;
                 const reply = `Pong! 响应时间: ${responseTime}ms`;
                 if (group_id) {
-                    await this.sendGroupMessage(group_id, reply);
+                    await this.api.sendGroupMessage(group_id, reply);
                 } else {
-                    await this.sendPrivateMessage(user_id, reply);
+                    await this.api.sendPrivateMessage(user_id, reply);
                 }
                 break;
                 
@@ -205,18 +256,18 @@ class ExamplePlugin extends BasePlugin {
                 const stats = await this.getStats();
                 const statsMessage = this.formatStats(stats);
                 if (group_id) {
-                    await this.sendGroupMessage(group_id, statsMessage);
+                    await this.api.sendGroupMessage(group_id, statsMessage);
                 } else {
-                    await this.sendPrivateMessage(user_id, statsMessage);
+                    await this.api.sendPrivateMessage(user_id, statsMessage);
                 }
                 break;
                 
             case 'echo':
                 const echoMessage = args.join(' ') || '请提供要回显的内容';
                 if (group_id) {
-                    await this.sendGroupMessage(group_id, echoMessage);
+                    await this.api.sendGroupMessage(group_id, echoMessage);
                 } else {
-                    await this.sendPrivateMessage(user_id, echoMessage);
+                    await this.api.sendPrivateMessage(user_id, echoMessage);
                 }
                 break;
                 
@@ -224,18 +275,18 @@ class ExamplePlugin extends BasePlugin {
                 const now = new Date().toLocaleString('zh-CN');
                 const timeMessage = `当前时间：${now}`;
                 if (group_id) {
-                    await this.sendGroupMessage(group_id, timeMessage);
+                    await this.api.sendGroupMessage(group_id, timeMessage);
                 } else {
-                    await this.sendPrivateMessage(user_id, timeMessage);
+                    await this.api.sendPrivateMessage(user_id, timeMessage);
                 }
                 break;
                 
             default:
                 const unknownMessage = `未知命令: ${command}。使用 /help 查看可用命令。`;
                 if (group_id) {
-                    await this.sendGroupMessage(group_id, unknownMessage);
+                    await this.api.sendGroupMessage(group_id, unknownMessage);
                 } else {
-                    await this.sendPrivateMessage(user_id, unknownMessage);
+                    await this.api.sendPrivateMessage(user_id, unknownMessage);
                 }
         }
     }
@@ -259,9 +310,9 @@ class ExamplePlugin extends BasePlugin {
             `- 在群聊中发送"签到"进行签到`;
         
         if (group_id) {
-            await this.sendGroupMessage(group_id, helpText);
+            await this.api.sendGroupMessage(group_id, helpText);
         } else {
-            await this.sendPrivateMessage(user_id, helpText);
+            await this.api.sendPrivateMessage(user_id, helpText);
         }
     }
 
@@ -275,11 +326,11 @@ class ExamplePlugin extends BasePlugin {
         const cleanMessage = raw_message.replace(/\[CQ:at,qq=\d+\]/g, '').trim();
         
         if (cleanMessage.includes('你好') || cleanMessage.includes('hello')) {
-            await this.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 你好！我是示例插件，很高兴为您服务！`);
+            await this.api.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 你好！我是示例插件，很高兴为您服务！`);
         } else if (cleanMessage.includes('帮助') || cleanMessage.includes('help')) {
             await this.sendHelpMessage(message);
         } else {
-            await this.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 我收到了您的消息，但不太理解。请使用 /help 查看可用命令。`);
+            await this.api.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 我收到了您的消息，但不太理解。请使用 /help 查看可用命令。`);
         }
     }
 
@@ -294,7 +345,7 @@ class ExamplePlugin extends BasePlugin {
         // 检查今天是否已经签到
         const hasCheckedIn = await this.getData(checkInKey);
         if (hasCheckedIn) {
-            await this.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 您今天已经签到过了！`);
+            await this.api.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 您今天已经签到过了！`);
             return;
         }
         
@@ -309,7 +360,7 @@ class ExamplePlugin extends BasePlugin {
         await this.setData(userStatsKey, userStats);
         
         const replyMessage = `[CQ:at,qq=${user_id}] 签到成功！这是您第 ${userStats.totalCheckIns} 次签到。`;
-        await this.sendGroupMessage(group_id, replyMessage);
+        await this.api.sendGroupMessage(group_id, replyMessage);
     }
 
     /**
@@ -321,8 +372,8 @@ class ExamplePlugin extends BasePlugin {
         logger.info(`New friend added: ${user_id}`);
         
         // 发送欢迎消息
-        const config = await this.getData('config');
-        const welcomeMessage = `${config.welcomeMessage}\n\n` +
+        const config = await this.getData('config') || { welcomeMessage: '你好！欢迎使用示例插件！' };
+        const welcomeMessage = `${config.welcomeMessage || '你好！欢迎使用示例插件！'}\n\n` +
             `我是示例插件，可以为您提供以下服务：\n` +
             `- 发送 /help 查看所有命令\n` +
             `- 发送"你好"获得问候\n` +
@@ -331,7 +382,7 @@ class ExamplePlugin extends BasePlugin {
         
         // 延迟发送，避免过于突兀
         setTimeout(async () => {
-            await this.sendPrivateMessage(user_id, welcomeMessage);
+            await this.api.sendPrivateMessage(user_id, welcomeMessage);
         }, 2000);
     }
 
@@ -349,7 +400,7 @@ class ExamplePlugin extends BasePlugin {
         
         // 延迟发送
         setTimeout(async () => {
-            await this.sendGroupMessage(group_id, welcomeMessage);
+            await this.api.sendGroupMessage(group_id, welcomeMessage);
         }, 3000);
     }
 
@@ -357,7 +408,12 @@ class ExamplePlugin extends BasePlugin {
      * 更新统计数据
      */
     async updateStats(type) {
-        const stats = await this.getData('stats');
+        const stats = await this.getData('stats') || {
+            totalMessages: 0,
+            privateMessages: 0,
+            groupMessages: 0,
+            commandsExecuted: 0
+        };
         stats.totalMessages++;
         if (type) {
             stats[type]++;
@@ -369,7 +425,12 @@ class ExamplePlugin extends BasePlugin {
      * 获取统计信息
      */
     async getStats() {
-        const stats = await this.getData('stats');
+        const stats = await this.getData('stats') || {
+            totalMessages: 0,
+            privateMessages: 0,
+            groupMessages: 0,
+            commandsExecuted: 0
+        };
         return {
             ...stats,
             uptime: this.getUptime(),
@@ -464,9 +525,9 @@ class ExamplePlugin extends BasePlugin {
             }
             
             if (type === 'private') {
-                await this.sendPrivateMessage(target, message);
+                await this.api.sendPrivateMessage(target, message);
             } else if (type === 'group') {
-                await this.sendGroupMessage(target, message);
+                await this.api.sendGroupMessage(target, message);
             } else {
                 return res.status(400).json({
                     success: false,

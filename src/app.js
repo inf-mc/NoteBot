@@ -84,8 +84,8 @@ class Application extends EventEmitter {
             // 初始化监控
             await this.startComponent('monitor', this.initializeMonitoring.bind(this));
             await this.startComponent('onebot', this.initializeOnebot.bind(this));
-            await this.startComponent('plugins', this.initializePlugins.bind(this));
             await this.startComponent('scheduler', this.initializeScheduler.bind(this));
+            await this.startComponent('plugins', this.initializePlugins.bind(this));
             await this.startComponent('web', this.initializeWebServer.bind(this));
             
             this.isRunning = true;
@@ -217,7 +217,7 @@ class Application extends EventEmitter {
         });
         
         logAnalyzer.on('alert', (alert) => {
-            logger.warn('NoteBot 日志分析器警告:', alert);
+            // 直接发出事件，避免通过logger输出造成循环
             this.emit('logAlert', alert);
         });
         
@@ -255,6 +255,18 @@ class Application extends EventEmitter {
             this.emit('componentError', { name: 'onebot', error });
         });
         
+        // 监听消息事件并转发给消息处理器
+        onebotInstance.on('message', (data) => {
+            logger.debug('收到OneBot消息事件:', data);
+            // 获取消息处理器并处理消息
+            const messageHandler = this.getComponent('plugins')?.messageHandler;
+            if (messageHandler) {
+                messageHandler.handleMessage(data.message);
+            } else {
+                logger.warn('消息处理器未初始化，无法处理消息');
+            }
+        });
+        
         return onebotInstance;
     }
 
@@ -287,6 +299,9 @@ class Application extends EventEmitter {
             logger.error('NoteBot 插件管理器错误:', error);
             this.emit('componentError', { name: 'plugins', error });
         });
+        
+        // 初始化插件管理器
+        await pluginInstance.init();
         
         return pluginInstance;
     }
@@ -414,11 +429,11 @@ class Application extends EventEmitter {
                     health.overall = 'degraded';
                 }
             }
-            
+
             this.emit('healthCheck', health);
-            
-            if (health.overall !== 'healthy') {
-                logger.warn('运行状况检查检测到问题:', health);
+
+            if (health.overall !== 'healthy'&&health !== null) {
+                //logger.warn('运行状况检查检测到问题:', health);
             } else {
                 logger.debug('运行状况检查通过');
             }

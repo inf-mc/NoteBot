@@ -231,6 +231,62 @@ router.get('/plugins', authenticateToken, (req, res) => {
   }
 });
 
+// 启用插件
+router.post('/plugins/:name/enable', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    
+    if (!global.pluginManager) {
+      return res.status(500).json({
+        error: '插件管理器未初始化'
+      });
+    }
+    
+    await global.pluginManager.enablePlugin(name);
+    
+    res.json({
+      success: true,
+      message: `插件 ${name} 启用成功`
+    });
+    
+    logger.info(`插件 ${name} 已通过API启用`);
+    
+  } catch (error) {
+    logger.error(`启用插件失败 [${req.params.name}]:`, error);
+    res.status(500).json({
+      error: error.message || '启用插件失败'
+    });
+  }
+});
+
+// 禁用插件
+router.post('/plugins/:name/disable', authenticateToken, async (req, res) => {
+  try {
+    const { name } = req.params;
+    
+    if (!global.pluginManager) {
+      return res.status(500).json({
+        error: '插件管理器未初始化'
+      });
+    }
+    
+    await global.pluginManager.disablePlugin(name);
+    
+    res.json({
+      success: true,
+      message: `插件 ${name} 禁用成功`
+    });
+    
+    logger.info(`插件 ${name} 已通过API禁用`);
+    
+  } catch (error) {
+    logger.error(`禁用插件失败 [${req.params.name}]:`, error);
+    res.status(500).json({
+      error: error.message || '禁用插件失败'
+    });
+  }
+});
+
 // 获取配置文件内容
 router.get('/config', authenticateToken, (req, res) => {
   try {
@@ -445,7 +501,7 @@ router.get('/config/categories', authenticateToken, (req, res) => {
 });
 
 // 更新单个配置项
-router.post('/config/item', authenticateToken, (req, res) => {
+router.post('/config/item', authenticateToken, async (req, res) => {
   try {
     const { key, value } = req.body;
     
@@ -507,6 +563,14 @@ router.post('/config/item', authenticateToken, (req, res) => {
     const configData = fs.readFileSync(configPath, 'utf8');
     const configJson = JSON.parse(configData);
     
+    // 检查是否为OneBot相关配置项
+    const isOnebotConfig = key.startsWith('onebot.');
+    let oldOnebotValue = null;
+    
+    if (isOnebotConfig) {
+      oldOnebotValue = getConfigValue(configJson, key);
+    }
+    
     // OneBot连接配置验证
     if (key.startsWith('onebot.connections.') && key.endsWith('.enabled') && value === true) {
       const validationResult = validateOnebotConnectionConfig(configJson, key);
@@ -522,13 +586,38 @@ router.post('/config/item', authenticateToken, (req, res) => {
 
     // 写入新配置
     fs.writeFileSync(configPath, JSON.stringify(configJson, null, 2));
+    
+    // 重新加载配置到内存
+    config.reload();
+
+    let restartResult = null;
+    let onebotRestarted = false;
+    
+    // 如果是OneBot配置项且值发生变更，重启OneBot模块
+    if (isOnebotConfig && oldOnebotValue !== value) {
+      logger.info(`检测到OneBot配置项 ${key} 变更，正在重启OneBot模块...`);
+      onebotRestarted = true;
+      
+      try {
+        restartResult = await restartOnebotModule();
+        logger.info('OneBot模块重启成功');
+      } catch (error) {
+        logger.error('OneBot模块重启失败:', error);
+        restartResult = {
+          success: false,
+          error: error.message
+        };
+      }
+    }
 
     res.json({
       success: true,
-      message: '配置项更新成功'
+      message: '配置项更新成功',
+      onebotRestarted,
+      restartResult
     });
 
-    logger.info(`配置项 ${key} 已更新`);
+    logger.info(`配置项 ${key} 已更新${onebotRestarted ? '，OneBot模块已重启' : ''}`);
     
   } catch (error) {
     logger.error('更新配置项错误:', error);
@@ -598,7 +687,7 @@ function setConfigValue(config, path, value) {
 }
 
 // 更新配置文件
-router.post('/config', authenticateToken, (req, res) => {
+router.post('/config', authenticateToken, async (req, res) => {
   try {
     const { config: newConfig } = req.body;
     
@@ -610,15 +699,52 @@ router.post('/config', authenticateToken, (req, res) => {
     
     const configPath = path.join(process.cwd(), 'config', 'config.json');
     
+    // 读取当前配置以检测OneBot配置变更
+    let oldConfig = {};
+    let onebotConfigChanged = false;
+    
+    try {
+      const oldConfigData = fs.readFileSync(configPath, 'utf8');
+      oldConfig = JSON.parse(oldConfigData);
+      
+      // 检测OneBot配置是否发生变更
+      onebotConfigChanged = hasOnebotConfigChanged(oldConfig.onebot, newConfig.onebot);
+    } catch (error) {
+      logger.warn('读取旧配置文件失败，将视为首次配置:', error.message);
+      onebotConfigChanged = true; // 首次配置时也需要重启
+    }
+    
     // 写入新配置
     fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+    
+    // 重新加载配置到内存
+    config.reload();
+
+    let restartResult = null;
+    
+    // 如果OneBot配置发生变更，重启OneBot模块
+    if (onebotConfigChanged) {
+      logger.info('检测到OneBot配置变更，正在重启OneBot模块...');
+      try {
+        restartResult = await restartOnebotModule();
+        logger.info('OneBot模块重启成功');
+      } catch (error) {
+        logger.error('OneBot模块重启失败:', error);
+        restartResult = {
+          success: false,
+          error: error.message
+        };
+      }
+    }
 
     res.json({
       success: true,
-      message: '配置文件更新成功'
+      message: '配置文件更新成功',
+      onebotRestarted: onebotConfigChanged,
+      restartResult
     });
 
-    logger.info(`配置文件已更新`);
+    logger.info(`配置文件已更新${onebotConfigChanged ? '，OneBot模块已重启' : ''}`);
     
   } catch (error) {
     logger.error('更新配置文件错误:', error);
@@ -627,6 +753,77 @@ router.post('/config', authenticateToken, (req, res) => {
     });
   }
 });
+
+/**
+ * 检测OneBot配置是否发生变更
+ */
+function hasOnebotConfigChanged(oldOnebot, newOnebot) {
+  if (!oldOnebot && !newOnebot) return false;
+  if (!oldOnebot || !newOnebot) return true;
+  
+  // 检查关键配置项
+  const keyFields = [
+    'mode',
+    'connections.reverse_ws.enabled',
+    'connections.reverse_ws.port',
+    'connections.reverse_ws.host',
+    'connections.forward_ws.enabled',
+    'connections.forward_ws.url',
+    'connections.http_api.enabled',
+    'connections.http_api.port',
+    'connections.http_post.enabled',
+    'connections.http_post.url'
+  ];
+  
+  for (const field of keyFields) {
+    const oldValue = getConfigValue(oldOnebot, field);
+    const newValue = getConfigValue(newOnebot, field);
+    
+    if (oldValue !== newValue) {
+      logger.debug(`OneBot配置变更检测: ${field} 从 ${oldValue} 变更为 ${newValue}`);
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+/**
+ * 重启OneBot模块
+ */
+async function restartOnebotModule() {
+  try {
+    // 获取应用实例
+    const app = global.app;
+    if (!app) {
+      throw new Error('应用实例不可用');
+    }
+    
+    // 获取当前OneBot实例
+    const currentOnebot = app.getComponent('onebot');
+    if (currentOnebot) {
+      logger.info('正在关闭当前OneBot实例...');
+      await currentOnebot.close();
+    }
+    
+    // 重新初始化OneBot模块
+    logger.info('正在重新初始化OneBot模块...');
+    const newOnebotInstance = await app.initializeOnebot();
+    
+    // 更新组件引用
+    app.components.set('onebot', newOnebotInstance);
+    global.onebotCore = newOnebotInstance;
+    
+    return {
+      success: true,
+      message: 'OneBot模块重启成功'
+    };
+    
+  } catch (error) {
+    logger.error('重启OneBot模块失败:', error);
+    throw error;
+  }
+}
 
 // 系统状态
 router.get('/system/status', authenticateToken, (req, res) => {
@@ -664,6 +861,27 @@ router.use((err, req, res, next) => {
     error: 'Internal server error',
     message: err.message
   });
+});
+
+// OneBot状态检查端点
+router.get('/onebot/status', authenticateToken, async (req, res) => {
+  try {
+    const app = global.app;
+    if (!app || !app.onebot) {
+      return res.json({ connected: false, error: 'OneBot模块未初始化' });
+    }
+    
+    const onebot = app.onebot;
+    const connected = onebot.connected || false;
+    
+    res.json({ 
+      connected,
+      status: connected ? 'connected' : 'disconnected'
+    });
+  } catch (error) {
+    logger.error('获取OneBot状态失败:', error);
+    res.status(500).json({ error: '获取OneBot状态失败' });
+  }
 });
 
 module.exports = router;

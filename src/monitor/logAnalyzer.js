@@ -244,6 +244,11 @@ class LogAnalyzer extends EventEmitter {
         const timestamp = Date.now();
         const hour = new Date().getHours();
         
+        // 过滤掉日志分析器自己产生的警告信息，避免循环
+        if (line.includes('Log analyzer alert') || line.includes('日志分析器警告')) {
+            return;
+        }
+        
         // 更新统计信息
         this.statistics.total++;
         
@@ -398,7 +403,7 @@ class LogAnalyzer extends EventEmitter {
             data
         };
         
-        logger.warn(`Log analyzer alert [${type}]:`, data);
+        // 只发出事件，不通过logger输出，避免循环
         this.emit('alert', alert);
     }
 

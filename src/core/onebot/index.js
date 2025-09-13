@@ -161,6 +161,9 @@ class OnebotCore extends EventEmitter {
             this.reconnectTimers.delete('forward_ws');
           }
           this.reconnectAttempts.forward_ws = 0;
+          
+          // 启动心跳检测
+          this.startForwardWsHeartbeat();
         });
         
         this.connections.forwardWs.on('message', (data) => {
@@ -177,8 +180,11 @@ class OnebotCore extends EventEmitter {
           this.isConnected = false;
           this.emit('disconnected', 'forward_ws');
           
-          // 自动重连
-          const reconnectInterval = config.reconnectInterval || 3000;
+          // 停止心跳检测
+          this.stopForwardWsHeartbeat();
+          
+          // 自动重连（使用指数退避算法）
+          const baseInterval = config.reconnectInterval || 5000;
           const maxAttempts = config.maxReconnectAttempts || 10;
           const currentAttempts = this.reconnectAttempts?.forward_ws || 0;
           
@@ -186,10 +192,13 @@ class OnebotCore extends EventEmitter {
             this.reconnectAttempts = this.reconnectAttempts || {};
             this.reconnectAttempts.forward_ws = currentAttempts + 1;
             
+            // 指数退避：每次重连间隔翻倍，最大不超过60秒
+            const backoffInterval = Math.min(baseInterval * Math.pow(2, currentAttempts), 60000);
+            
             this.reconnectTimers.set('forward_ws', setTimeout(() => {
-              logger.info(`尝试重连正向WebSocket... (${this.reconnectAttempts.forward_ws}/${maxAttempts})`);
+              logger.info(`尝试重连正向WebSocket... (${this.reconnectAttempts.forward_ws}/${maxAttempts}，间隔${backoffInterval}ms)`);
               connectForwardWs();
-            }, reconnectInterval));
+            }, backoffInterval));
           } else {
             logger.error('正向WebSocket重连次数已达上限，停止重连');
           }
@@ -197,6 +206,14 @@ class OnebotCore extends EventEmitter {
         
         this.connections.forwardWs.on('error', (error) => {
           logger.error('正向WebSocket连接错误:', error);
+          this.emit('error', error);
+        });
+        
+        this.connections.forwardWs.on('pong', () => {
+          // 收到pong响应，更新最后心跳时间和计数
+          this.lastForwardWsPong = Date.now();
+          this.forwardWsPongCount++;
+          logger.debug(`收到正向WebSocket pong响应 #${this.forwardWsPongCount}`);
         });
         
       } catch (error) {
@@ -523,8 +540,13 @@ class OnebotCore extends EventEmitter {
       return this.callHttpApi(action, params);
     }
     
-    // 使用WebSocket API
-    if (!this.isConnected) {
+    // 使用WebSocket API - 检查实际连接状态
+    const hasValidConnection = (
+      (this.connections.forwardWs && this.connections.forwardWs.readyState === WebSocket.OPEN) ||
+      (this.clients.size > 0)
+    );
+    
+    if (!hasValidConnection) {
       throw new Error('Onebot 客户端未连接');
     }
 
@@ -657,6 +679,187 @@ class OnebotCore extends EventEmitter {
   }
 
   /**
+   * 获取群成员信息
+   */
+  async getGroupMemberInfo(groupId, userId, noCache = false) {
+    return this.callApi('get_group_member_info', {
+      group_id: groupId,
+      user_id: userId,
+      no_cache: noCache
+    });
+  }
+
+  /**
+   * 获取陌生人信息
+   */
+  async getStrangerInfo(userId, noCache = false) {
+    return this.callApi('get_stranger_info', {
+      user_id: userId,
+      no_cache: noCache
+    });
+  }
+
+  /**
+   * 撤回消息
+   */
+  async deleteMessage(messageId) {
+    return this.callApi('delete_msg', {
+      message_id: messageId
+    });
+  }
+
+  /**
+   * 获取消息
+   */
+  async getMessage(messageId) {
+    return this.callApi('get_msg', {
+      message_id: messageId
+    });
+  }
+
+  /**
+   * 转发消息
+   */
+  async forwardMessage(groupId, messageId) {
+    return this.callApi('forward_msg', {
+      group_id: groupId,
+      message_id: messageId
+    });
+  }
+
+  /**
+   * 群组踢人
+   */
+  async setGroupKick(groupId, userId, rejectAddRequest = false) {
+    return this.callApi('set_group_kick', {
+      group_id: groupId,
+      user_id: userId,
+      reject_add_request: rejectAddRequest
+    });
+  }
+
+  /**
+   * 群组单人禁言
+   */
+  async setGroupBan(groupId, userId, duration = 30 * 60) {
+    return this.callApi('set_group_ban', {
+      group_id: groupId,
+      user_id: userId,
+      duration: duration
+    });
+  }
+
+  /**
+   * 群组全员禁言
+   */
+  async setGroupWholeBan(groupId, enable = true) {
+    return this.callApi('set_group_whole_ban', {
+      group_id: groupId,
+      enable: enable
+    });
+  }
+
+  /**
+   * 群组设置管理员
+   */
+  async setGroupAdmin(groupId, userId, enable = true) {
+    return this.callApi('set_group_admin', {
+      group_id: groupId,
+      user_id: userId,
+      enable: enable
+    });
+  }
+
+  /**
+   * 设置群名片（群备注）
+   */
+  async setGroupCard(groupId, userId, card = '') {
+    return this.callApi('set_group_card', {
+      group_id: groupId,
+      user_id: userId,
+      card: card
+    });
+  }
+
+  /**
+   * 设置群名
+   */
+  async setGroupName(groupId, groupName) {
+    return this.callApi('set_group_name', {
+      group_id: groupId,
+      group_name: groupName
+    });
+  }
+
+  /**
+   * 退出群组
+   */
+  async setGroupLeave(groupId, isDismiss = false) {
+    return this.callApi('set_group_leave', {
+      group_id: groupId,
+      is_dismiss: isDismiss
+    });
+  }
+
+  /**
+   * 设置群组专属头衔
+   */
+  async setGroupSpecialTitle(groupId, userId, specialTitle = '', duration = -1) {
+    return this.callApi('set_group_special_title', {
+      group_id: groupId,
+      user_id: userId,
+      special_title: specialTitle,
+      duration: duration
+    });
+  }
+
+  /**
+   * 处理加好友请求
+   */
+  async setFriendAddRequest(flag, approve = true, remark = '') {
+    return this.callApi('set_friend_add_request', {
+      flag: flag,
+      approve: approve,
+      remark: remark
+    });
+  }
+
+  /**
+   * 处理加群请求／邀请
+   */
+  async setGroupAddRequest(flag, subType, approve = true, reason = '') {
+    return this.callApi('set_group_add_request', {
+      flag: flag,
+      sub_type: subType,
+      approve: approve,
+      reason: reason
+    });
+  }
+
+  /**
+   * 获取版本信息
+   */
+  async getVersionInfo() {
+    return this.callApi('get_version_info');
+  }
+
+  /**
+   * 重启 OneBot 实现
+   */
+  async setRestart(delay = 0) {
+    return this.callApi('set_restart', {
+      delay: delay
+    });
+  }
+
+  /**
+   * 清理缓存
+   */
+  async cleanCache() {
+    return this.callApi('clean_cache');
+  }
+
+  /**
    * 设置心跳检测
    */
   setupHeartbeat() {
@@ -679,6 +882,70 @@ class OnebotCore extends EventEmitter {
         this.isConnected = false;
       }
     }, heartbeatInterval);
+  }
+
+  /**
+   * 启动正向WebSocket心跳检测
+   */
+  startForwardWsHeartbeat() {
+    const config = this.config.connections.forward_ws;
+    const heartbeatInterval = config?.heartbeatInterval || 30000;
+    const enableHeartbeat = config?.enableHeartbeat !== false; // 默认启用心跳检测
+    
+    if (!enableHeartbeat) {
+      logger.debug('正向WebSocket心跳检测已禁用');
+      return;
+    }
+    
+    // 清除之前的心跳定时器
+    this.stopForwardWsHeartbeat();
+    
+    // 初始化心跳状态
+    this.lastForwardWsPing = Date.now();
+    this.lastForwardWsPong = Date.now();
+    this.forwardWsPingCount = 0;
+    this.forwardWsPongCount = 0;
+    
+    // 发送ping的定时器
+    this.forwardWsPingTimer = setInterval(() => {
+      if (this.connections.forwardWs && this.connections.forwardWs.readyState === WebSocket.OPEN) {
+        this.lastForwardWsPing = Date.now();
+        this.forwardWsPingCount++;
+        logger.debug(`发送正向WebSocket ping #${this.forwardWsPingCount}`);
+        this.connections.forwardWs.ping();
+        
+        // 检查连接健康状态：如果连续多次ping没有pong响应，才认为连接有问题
+        const missedPongs = this.forwardWsPingCount - this.forwardWsPongCount;
+        if (missedPongs >= 3) {
+          logger.warn(`正向WebSocket连续${missedPongs}次ping无响应，可能连接异常`);
+          // 只有在连续多次无响应且连接状态异常时才断开
+          if (this.connections.forwardWs.readyState !== WebSocket.OPEN) {
+            logger.warn('正向WebSocket连接状态异常，主动断开连接');
+            this.connections.forwardWs.terminate();
+          }
+        }
+      }
+    }, heartbeatInterval);
+    
+    logger.debug(`正向WebSocket心跳检测已启动，间隔${heartbeatInterval}ms`);
+  }
+
+  /**
+   * 停止正向WebSocket心跳检测
+   */
+  stopForwardWsHeartbeat() {
+    if (this.forwardWsPingTimer) {
+      clearInterval(this.forwardWsPingTimer);
+      this.forwardWsPingTimer = null;
+    }
+    
+    // 清理心跳状态
+    this.lastForwardWsPing = null;
+    this.lastForwardWsPong = null;
+    this.forwardWsPingCount = 0;
+    this.forwardWsPongCount = 0;
+    
+    logger.debug('正向WebSocket心跳检测已停止');
   }
 
   /**
@@ -720,9 +987,23 @@ class OnebotCore extends EventEmitter {
     if (this.heartbeatInterval) {
       clearInterval(this.heartbeatInterval);
     }
+    
+    // 停止正向WebSocket心跳检测
+    this.stopForwardWsHeartbeat();
+    
+    // 清除重连定时器
+    for (const [key, timer] of this.reconnectTimers) {
+      clearTimeout(timer);
+    }
+    this.reconnectTimers.clear();
 
     if (this.wsServer) {
       this.wsServer.close();
+    }
+    
+    // 关闭正向WebSocket连接
+    if (this.connections.forwardWs) {
+      this.connections.forwardWs.close();
     }
 
     this.httpClients.clear();

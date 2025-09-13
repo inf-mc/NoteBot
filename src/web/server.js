@@ -48,7 +48,14 @@ class WebServer extends EventEmitter {
         });
         
         this.app.get('/webui', (req, res) => {
-            res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+            res.sendFile(path.join(__dirname, 'public', 'index.html'));
+        });
+        
+        this.app.get('/config', (req, res) => {
+            res.sendFile(path.join(__dirname, 'public', 'index.html'));
+        });
+                this.app.get('/plugins', (req, res) => {
+            res.sendFile(path.join(__dirname, 'public', 'index.html'));
         });
     }
 

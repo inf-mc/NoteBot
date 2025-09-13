@@ -5,6 +5,7 @@ const chokidar = require('chokidar');
 const logger = require('../../utils/logger');
 const PluginLoader = require('../loader');
 const PluginCommunication = require('../communication');
+const { MessageHandler } = require('../../core/onebot/messageHandler');
 
 /**
  * 插件管理器
@@ -12,23 +13,121 @@ const PluginCommunication = require('../communication');
 class PluginManager extends EventEmitter {
   constructor(config, redisManager, onebotCore, scheduler) {
     super();
+    
     this.config = config;
     this.redis = redisManager;
     this.onebot = onebotCore;
     this.scheduler = scheduler;
     
-    this.pluginDir = config.pluginDir || 'plugins';
+    this.pluginDir = path.resolve(config.pluginDir || './plugins');
     this.plugins = new Map();
     this.pluginConfigs = new Map();
     this.pluginStates = new Map();
+    this.loadingLocks = new Map(); // 添加加载锁防止竞态条件
     
     this.loader = new PluginLoader(this);
     this.communication = new PluginCommunication(this);
+    this.messageHandler = new MessageHandler(onebotCore, this);
     
+    this.hotReloadEnabled = config.hotReload !== false;
     this.watcher = null;
-    this.hotReloadEnabled = config.hotReload || false;
+  }
+
+  /**
+   * 重写emit方法，支持消息事件分发给所有插件
+   */
+  emit(event, data) {
+    // 先调用父类的emit方法
+    super.emit(event, data);
     
-    this.init();
+    // 如果是消息事件，分发给所有插件
+    if (event === 'private_message' || event === 'group_message' || 
+        event.startsWith('notice.') || event.startsWith('request.')) {
+      this.distributeEventToPlugins(event, data);
+    }
+    
+    return this;
+  }
+
+  /**
+   * 将事件分发给所有已加载的插件
+   */
+  async distributeEventToPlugins(event, data) {
+    const plugins = this.getPluginList();
+    
+    for (const plugin of plugins) {
+      if (!plugin.loaded) continue;
+      
+      try {
+        const pluginData = this.plugins.get(plugin.name);
+        if (!pluginData || !pluginData.instance) continue;
+        
+        const { instance } = pluginData;
+        
+        // 检查插件是否有对应的事件处理方法
+        let handlerMethod = null;
+        
+        if (event === 'private_message' && typeof instance.handlePrivateMessage === 'function') {
+          handlerMethod = instance.handlePrivateMessage.bind(instance);
+        } else if (event === 'group_message' && typeof instance.handleGroupMessage === 'function') {
+          handlerMethod = instance.handleGroupMessage.bind(instance);
+        } else if (event.startsWith('notice.') || event.startsWith('request.')) {
+          // 对于通知和请求事件，查找对应的处理方法
+          const methodName = this.getEventHandlerMethodName(event);
+          if (typeof instance[methodName] === 'function') {
+            handlerMethod = instance[methodName].bind(instance);
+          }
+        }
+        
+        // 如果插件有对应的处理方法，调用它
+        if (handlerMethod) {
+          await handlerMethod(data);
+          
+          // 更新插件统计信息
+          const state = this.pluginStates.get(plugin.name);
+          if (state && state.metrics) {
+            state.metrics.messageCount++;
+            state.metrics.lastActivity = Date.now();
+          }
+        }
+        
+      } catch (error) {
+        logger.error(`插件 ${plugin.name} 处理事件 ${event} 时出错:`, error);
+        
+        // 更新错误统计
+        const state = this.pluginStates.get(plugin.name);
+        if (state && state.metrics) {
+          state.metrics.errorCount++;
+          state.errors = state.errors || [];
+          state.errors.push({
+            event,
+            error: error.message,
+            timestamp: Date.now()
+          });
+          
+          // 只保留最近的10个错误
+          if (state.errors.length > 10) {
+            state.errors = state.errors.slice(-10);
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * 根据事件名称获取对应的处理方法名
+   */
+  getEventHandlerMethodName(event) {
+    const eventMap = {
+      'notice.group_upload': 'handleGroupUpload',
+      'notice.group_increase': 'handleGroupIncrease', 
+      'notice.group_decrease': 'handleGroupDecrease',
+      'notice.friend_add': 'handleFriendAdd',
+      'request.friend': 'handleFriendRequest',
+      'request.group': 'handleGroupRequest'
+    };
+    
+    return eventMap[event] || null;
   }
 
   /**
@@ -156,6 +255,15 @@ class PluginManager extends EventEmitter {
    * 加载单个插件
    */
   async loadPlugin(name) {
+    // 检查是否正在加载中
+    if (this.loadingLocks.has(name)) {
+      logger.warn(`插件正在加载中，跳过重复加载: ${name}`);
+      return;
+    }
+    
+    // 设置加载锁
+    this.loadingLocks.set(name, true);
+    
     try {
       const config = this.pluginConfigs.get(name);
       if (!config) {
@@ -163,7 +271,8 @@ class PluginManager extends EventEmitter {
       }
       
       if (this.plugins.has(name)) {
-        throw new Error(`插件已加载: ${name}`);
+        logger.warn(`插件已加载，跳过重复加载: ${name}`);
+        return;
       }
       
       // 使用加载器加载插件
@@ -217,6 +326,9 @@ class PluginManager extends EventEmitter {
       this.emit('plugin_error', { name, error });
       
       throw error;
+    } finally {
+      // 清除加载锁
+      this.loadingLocks.delete(name);
     }
   }
 
@@ -224,10 +336,20 @@ class PluginManager extends EventEmitter {
    * 卸载插件
    */
   async unloadPlugin(name) {
+    // 检查是否正在加载中，如果是则等待
+    if (this.loadingLocks.has(name)) {
+      logger.warn(`插件正在加载中，等待加载完成后再卸载: ${name}`);
+      // 等待加载完成
+      while (this.loadingLocks.has(name)) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+    
     try {
       const pluginData = this.plugins.get(name);
       if (!pluginData) {
-        throw new Error(`插件未加载: ${name}`);
+        logger.warn(`插件未加载，无需卸载: ${name}`);
+        return true;
       }
       
       const { instance, context } = pluginData;
@@ -274,20 +396,29 @@ class PluginManager extends EventEmitter {
    */
   async reloadPlugin(name) {
     try {
+      // 检查插件配置是否存在
+      const config = this.pluginConfigs.get(name);
+      if (!config) {
+        throw new Error(`插件配置不存在: ${name}`);
+      }
+      
+      // 如果插件已加载，先卸载
       if (this.plugins.has(name)) {
         await this.unloadPlugin(name);
       }
       
       // 重新加载配置
-      const config = this.pluginConfigs.get(name);
-      if (config) {
-        const configPath = path.join(config.path, 'plugin.json');
+      const configPath = path.join(config.path, 'plugin.json');
+      try {
         const configData = await fs.readFile(configPath, 'utf8');
         const newConfig = JSON.parse(configData);
         newConfig.path = config.path;
         this.pluginConfigs.set(name, newConfig);
+      } catch (configError) {
+        logger.warn(`无法重新加载插件配置 [${name}]:`, configError.message);
       }
       
+      // 重新加载插件
       await this.loadPlugin(name);
       
       logger.info(`插件重新加载成功: ${name}`);

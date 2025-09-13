@@ -1,5 +1,6 @@
 const EventEmitter = require('events');
 const logger = require('../../utils/logger');
+const OneBotApiWrapper = require('../../core/onebot/api-wrapper');
 
 /**
  * 插件基类
@@ -17,6 +18,7 @@ class BasePlugin extends EventEmitter {
     this.context = null;
     this.config = null;
     this.logger = null;
+    this.api = null;
     
     this.initialized = false;
     this.destroyed = false;
@@ -35,6 +37,11 @@ class BasePlugin extends EventEmitter {
       this.context = context;
       this.config = context.config;
       this.logger = context.logger || logger.child({ plugin: this.name });
+      
+      // 创建API封装器实例
+      if (context.onebot) {
+        this.api = new OneBotApiWrapper(context.onebot);
+      }
       
       this.logger.info(`插件初始化开始: ${this.name}`);
       
@@ -342,7 +349,8 @@ class BasePlugin extends EventEmitter {
   }
 
   /**
-   * 发送 Onebot 消息
+   * 发送 Onebot 消息 (已废弃，请使用 this.api)
+   * @deprecated 请使用 this.api.sendPrivateMessage 或 this.api.sendGroupMessage
    */
   async sendOnebotMessage(messageType, data) {
     if (!this.context) {
@@ -353,7 +361,8 @@ class BasePlugin extends EventEmitter {
   }
 
   /**
-   * 调用 Onebot API
+   * 调用 Onebot API (已废弃，请使用 this.api)
+   * @deprecated 请使用 this.api 中的具体方法
    */
   async callOnebotAPI(action, params) {
     if (!this.context) {
@@ -361,6 +370,17 @@ class BasePlugin extends EventEmitter {
     }
     
     return await this.context.onebot.callAPI(action, params);
+  }
+
+  /**
+   * 获取API封装器实例
+   * @returns {OneBotApiWrapper} API封装器实例
+   */
+  getApi() {
+    if (!this.api) {
+      throw new Error('API封装器未初始化，请确保插件已正确初始化');
+    }
+    return this.api;
   }
 
   /**

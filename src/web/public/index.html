@@ -261,6 +261,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="server-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="server" onclick="saveCategoryConfig('server')" style="display: none;">保存服务器配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -283,6 +286,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="database-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="database" onclick="saveCategoryConfig('database')" style="display: none;">保存数据库配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -306,6 +312,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="onebot-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="onebot" onclick="saveCategoryConfig('onebot')" style="display: none;">保存OneBot配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -327,6 +336,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="plugins-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="plugins" onclick="saveCategoryConfig('plugins')" style="display: none;">保存插件配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -349,6 +361,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="security-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="security" onclick="saveCategoryConfig('security')" style="display: none;">保存安全配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -370,6 +385,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="logging-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="logging" onclick="saveCategoryConfig('logging')" style="display: none;">保存日志配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -392,6 +410,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="monitoring-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="monitoring" onclick="saveCategoryConfig('monitoring')" style="display: none;">保存监控配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -412,6 +433,9 @@
                         </div>
                         <div class="config-card-body">
                             <div class="config-items" id="upload-config"></div>
+                            <div class="mt-3 text-end">
+                                <button class="btn btn-primary btn-save-category" data-category="upload" onclick="saveCategoryConfig('upload')" style="display: none;">保存上传配置</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -459,6 +483,8 @@
             fill: currentColor;
             vertical-align: middle;
         }
+        
+
         
         .nav-icon .svg-icon {
             width: 20px;
@@ -548,6 +574,32 @@
         .status-disabled {
             background: var(--danger-light);
             color: var(--danger-dark);
+        }
+        
+        .plugin-actions {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 1rem;
+        }
+        
+        .plugin-toggle-btn {
+            min-width: 60px;
+            font-size: var(--font-size-xs);
+            padding: 0.375rem 0.75rem;
+            border-radius: var(--border-radius-sm);
+            transition: var(--transition-base);
+        }
+        
+        .plugin-toggle-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .plugin-toggle-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
         }
         
         /* 模态框样式 */
@@ -907,6 +959,82 @@
         let authToken = null;
         let currentPage = 'dashboard';
         
+        /**
+         * 显示OneBot重启通知
+         */
+        function showOnebotRestartNotification(type, message) {
+            // 移除已存在的通知
+            const existingNotification = document.querySelector('.onebot-restart-notification');
+            if (existingNotification) {
+                existingNotification.remove();
+            }
+            
+            // 创建通知元素
+            const notification = document.createElement('div');
+            notification.className = `alert alert-${type === 'success' ? 'success' : type === 'error' ? 'danger' : 'info'} alert-dismissible fade show onebot-restart-notification`;
+            notification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                z-index: 9999;
+                min-width: 300px;
+                max-width: 500px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            const iconClass = type === 'success' ? 'check-circle' : type === 'error' ? 'exclamation-triangle' : 'info-circle';
+            
+            notification.innerHTML = `
+                <div class="d-flex align-items-center">
+                    <i class="fas fa-${iconClass} me-2"></i>
+                    <div class="flex-grow-1">
+                        <strong>OneBot模块状态</strong><br>
+                        <small>${message}</small>
+                    </div>
+                    <button type="button" class="btn-close" onclick="this.parentElement.parentElement.remove()"></button>
+                </div>
+            `;
+            
+            document.body.appendChild(notification);
+            
+            // 自动移除通知（除了错误通知）
+            if (type !== 'error') {
+                setTimeout(() => {
+                    if (notification.parentNode) {
+                        notification.remove();
+                    }
+                }, 5000);
+            }
+        }
+        
+        /**
+         * 检查OneBot重启状态
+         */
+        async function checkOnebotRestartStatus() {
+            try {
+                const response = await fetch('/api/onebot/status', {
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`
+                    }
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.connected) {
+                        showOnebotRestartNotification('success', 'OneBot模块重启成功，连接正常');
+                        updateConnectionStatus();
+                    } else {
+                        showOnebotRestartNotification('error', 'OneBot模块重启完成，但连接异常，请检查配置');
+                    }
+                } else {
+                    showOnebotRestartNotification('error', '无法获取OneBot模块状态');
+                }
+            } catch (error) {
+                console.error('检查OneBot状态失败:', error);
+                showOnebotRestartNotification('error', 'OneBot模块状态检查失败');
+            }
+        }
+        
         // 初始化
         function init() {
             authToken = localStorage.getItem('token');
@@ -1194,11 +1322,18 @@
                 if (data.success) {
                     const plugins = data.data;
                     
-                    // 更新插件数量
-                    document.getElementById('plugins-count-bottom').textContent = plugins.length;
+                    // 更新插件数量（检查元素是否存在）
+                    const pluginsCountElement = document.getElementById('plugins-count-bottom');
+                    if (pluginsCountElement) {
+                        pluginsCountElement.textContent = plugins.length;
+                    }
                     
-                    // 渲染插件列表
+                    // 渲染插件列表（检查元素是否存在）
                     const pluginsList = document.getElementById('plugins-list');
+                    if (!pluginsList) {
+                        console.warn('插件列表容器不存在');
+                        return;
+                    }
                     pluginsList.innerHTML = '';
                     
                     if (plugins.length === 0) {
@@ -1214,23 +1349,110 @@
                                 <div class="plugin-name">${plugin.name || plugin.id}</div>
                                 <div class="plugin-version">版本: ${plugin.version || '未知'}</div>
                                 <div class="plugin-description">${plugin.description || '暂无描述'}</div>
-                                <span class="plugin-status ${plugin.enabled ? 'status-enabled' : 'status-disabled'}">
-                                    ${plugin.enabled ? '已启用' : '已禁用'}
-                                </span>
+                                <div class="plugin-actions">
+                                    <span class="plugin-status ${plugin.enabled ? 'status-enabled' : 'status-disabled'}">
+                                        ${plugin.enabled ? '已启用' : '已禁用'}
+                                    </span>
+                                    <button class="btn btn-sm ${plugin.enabled ? 'btn-warning' : 'btn-success'} plugin-toggle-btn" 
+                                            data-plugin-name="${plugin.name || plugin.id}" 
+                                            data-plugin-enabled="${plugin.enabled}">
+                                        ${plugin.enabled ? '禁用' : '启用'}
+                                    </button>
+                                </div>
                             `;
                             pluginsGrid.appendChild(pluginCard);
                         });
                         
                         pluginsList.appendChild(pluginsGrid);
+                        
+                        // 为插件切换按钮添加事件监听器
+                        document.querySelectorAll('.plugin-toggle-btn').forEach(btn => {
+                            btn.addEventListener('click', handlePluginToggle);
+                        });
                     }
                     
-                    document.getElementById('plugins-loading').classList.add('d-none');
+                    // 隐藏加载状态并显示插件列表（检查元素是否存在）
+                    const pluginsLoadingElement = document.getElementById('plugins-loading');
+                    if (pluginsLoadingElement) {
+                        pluginsLoadingElement.classList.add('d-none');
+                    }
                     pluginsList.classList.remove('d-none');
                 }
             } catch (error) {
                 console.error('加载插件列表失败:', error);
-                document.getElementById('plugins-loading').innerHTML = '<p class="text-danger">加载插件列表失败</p>';
+                const pluginsLoadingElement = document.getElementById('plugins-loading');
+                if (pluginsLoadingElement) {
+                    pluginsLoadingElement.innerHTML = '<p class="text-danger">加载插件列表失败</p>';
+                }
             }
+        }
+        
+        // 处理插件启用/禁用切换
+        async function handlePluginToggle(event) {
+            const btn = event.target;
+            const pluginName = btn.getAttribute('data-plugin-name');
+            const isEnabled = btn.getAttribute('data-plugin-enabled') === 'true';
+            const action = isEnabled ? 'disable' : 'enable';
+            
+            // 禁用按钮防止重复点击
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+            
+            try {
+                const response = await fetch(`/api/plugins/${encodeURIComponent(pluginName)}/${action}`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${authToken}`,
+                        'Content-Type': 'application/json'
+                    }
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    // 显示成功消息
+                    showMessage(result.message, 'success');
+                    
+                    // 重新加载插件列表以更新状态
+                    await loadPlugins();
+                } else {
+                    throw new Error(result.error || '操作失败');
+                }
+                
+            } catch (error) {
+                console.error(`插件${action}操作失败:`, error);
+                showMessage(`插件${action === 'enable' ? '启用' : '禁用'}失败: ${error.message}`, 'error');
+                
+                // 恢复按钮状态
+                btn.disabled = false;
+                btn.textContent = isEnabled ? '禁用' : '启用';
+            }
+        }
+        
+        // 显示消息提示
+        function showMessage(message, type = 'info') {
+            // 创建消息元素
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `alert alert-${type === 'error' ? 'danger' : type} alert-dismissible fade show`;
+            messageDiv.style.position = 'fixed';
+            messageDiv.style.top = '20px';
+            messageDiv.style.right = '20px';
+            messageDiv.style.zIndex = '9999';
+            messageDiv.style.minWidth = '300px';
+            messageDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" onclick="this.parentElement.remove()"></button>
+            `;
+            
+            // 添加到页面
+            document.body.appendChild(messageDiv);
+            
+            // 3秒后自动移除
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 3000);
         }
         
         // 全局变量
@@ -1350,9 +1572,8 @@
         function renderConfigItem(itemKey, item) {
             return `
                 <div class="form-group mb-3" data-key="${itemKey}">
-                    <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="mb-2">
                         <label class="form-label mb-0">${item.label}</label>
-                        <button class="btn btn-sm btn-primary btn-save" onclick="saveConfigItem('${itemKey}')" style="display: none;">保存</button>
                     </div>
                     <small class="text-muted d-block mb-2">${item.description}</small>
                     ${renderItemControl(itemKey, item)}
@@ -1399,11 +1620,25 @@
             `;
         }
         
+        // 存储每个分类的修改状态
+        const categoryChanges = {};
+        
         // 配置项变化处理
         function onItemChange(key) {
-            const saveBtn = document.querySelector(`[data-key="${key}"] .btn-save`);
-            if (saveBtn) {
-                saveBtn.style.display = 'inline-block';
+            // 确定配置项属于哪个分类
+            const category = getCategoryByKey(key);
+            if (category) {
+                // 记录该分类有修改
+                if (!categoryChanges[category]) {
+                    categoryChanges[category] = new Set();
+                }
+                categoryChanges[category].add(key);
+                
+                // 显示对应分类的保存按钮
+                const saveBtn = document.querySelector(`[data-category="${category}"] .btn-save-category`);
+                if (saveBtn) {
+                    saveBtn.style.display = 'inline-block';
+                }
             }
             
             // 如果是连接启用状态改变，实现连接互斥
@@ -1417,8 +1652,8 @@
                     const modeSelect = document.getElementById('onebot.mode');
                     if (modeSelect && modeSelect.value !== connectionType) {
                         modeSelect.value = connectionType;
-                        // 自动保存mode配置到后端
-                        saveConfigItem('onebot.mode', connectionType);
+                        // 记录mode配置也有修改
+                        onItemChange('onebot.mode');
                     }
                 }
             }
@@ -1440,6 +1675,151 @@
             }
         }
         
+        // 根据配置项key确定所属分类
+        function getCategoryByKey(key) {
+            if (key.startsWith('server.')) return 'server';
+            if (key.startsWith('database.')) return 'database';
+            if (key.startsWith('onebot.')) return 'onebot';
+            if (key.startsWith('plugins.')) return 'plugins';
+            if (key.startsWith('security.')) return 'security';
+            if (key.startsWith('logging.')) return 'logging';
+            if (key.startsWith('monitoring.')) return 'monitoring';
+            if (key.startsWith('upload.')) return 'upload';
+            return null;
+        }
+        
+        // 批量保存分类配置
+        async function saveCategoryConfig(category) {
+            const changes = categoryChanges[category];
+            if (!changes || changes.size === 0) {
+                showMessage('config-message', '没有需要保存的配置项', 'warning');
+                return;
+            }
+            
+            const saveBtn = document.querySelector(`[data-category="${category}"] .btn-save-category`);
+            if (saveBtn) {
+                saveBtn.disabled = true;
+                saveBtn.textContent = '保存中...';
+            }
+            
+            let successCount = 0;
+            let errorCount = 0;
+            const errors = [];
+            
+            try {
+                // 批量保存所有修改的配置项
+                for (const key of changes) {
+                    try {
+                        const element = document.getElementById(key);
+                        if (!element) continue;
+                        
+                        let value;
+                        if (element.type === 'checkbox') {
+                            value = element.checked;
+                        } else if (element.type === 'number') {
+                            value = parseFloat(element.value) || 0;
+                        } else {
+                            value = element.value;
+                        }
+                        
+                        // 验证配置项
+                        if (key.includes('accessToken') && value && value.length < 8) {
+                            errors.push(`${key}: 访问令牌长度至少8位`);
+                            errorCount++;
+                            continue;
+                        }
+                        
+                        if (key.includes('heartbeatInterval') && value && (value < 1000 || value > 300000)) {
+                            errors.push(`${key}: 心跳间隔应在1000-300000毫秒之间`);
+                            errorCount++;
+                            continue;
+                        }
+                        
+                        const response = await fetch('/api/config/item', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${authToken}`
+                            },
+                            body: JSON.stringify({ key, value })
+                        });
+                        
+                        const data = await response.json();
+                        if (data.success) {
+                            successCount++;
+                            
+                            // 检查是否有OneBot重启信息
+                            if (data.onebotRestarted) {
+                                if (data.restartResult && data.restartResult.success) {
+                                    showOnebotRestartNotification('success', `OneBot配置项 ${key} 已更新，模块重启成功`);
+                                } else {
+                                    const errorMsg = data.restartResult ? data.restartResult.error : '未知错误';
+                                    showOnebotRestartNotification('error', `OneBot配置项 ${key} 已更新，但模块重启失败：${errorMsg}`);
+                                }
+                            }
+                            
+                            // 更新本地配置数据
+                            const categoryData = configCategories[category];
+                            if (categoryData && categoryData.items && categoryData.items[key]) {
+                                categoryData.items[key].value = value;
+                            }
+                        } else {
+                            errors.push(`${key}: ${data.error}`);
+                            errorCount++;
+                        }
+                    } catch (error) {
+                        console.error(`保存配置项 ${key} 失败:`, error);
+                        errors.push(`${key}: 保存失败`);
+                        errorCount++;
+                    }
+                }
+                
+                // 显示保存结果
+                if (errorCount === 0) {
+                    let message = `${category}配置保存成功，共保存${successCount}项`;
+                    
+                    // 检查是否是OneBot配置并且需要重启
+                    if (category === 'onebot' && successCount > 0) {
+                        message += '，OneBot模块将自动重启';
+                        showOnebotRestartNotification('info', 'OneBot配置已更新，模块正在重启中...');
+                        
+                        // 延迟检查重启状态
+                        setTimeout(() => {
+                            checkOnebotRestartStatus();
+                        }, 2000);
+                    }
+                    
+                    showMessage('config-message', message, 'success');
+                    // 清除该分类的修改记录
+                    delete categoryChanges[category];
+                    // 隐藏保存按钮
+                    if (saveBtn) {
+                        saveBtn.style.display = 'none';
+                    }
+                } else {
+                    const message = `保存完成：成功${successCount}项，失败${errorCount}项。错误：${errors.join('; ')}`;
+                    showMessage('config-message', message, 'warning');
+                }
+                
+                // 处理OneBot连接相关的特殊逻辑
+                if (category === 'onebot') {
+                    updateConnectionStatus();
+                    setTimeout(() => {
+                        syncModeWithEnabledConnection();
+                    }, 100);
+                }
+                
+            } catch (error) {
+                console.error('批量保存配置失败:', error);
+                showMessage('config-message', '保存配置失败', 'danger');
+            } finally {
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = saveBtn.getAttribute('data-original-text') || `保存${category}配置`;
+                }
+            }
+        }
+        
         // 处理连接互斥逻辑
         function handleConnectionMutex(enabledKey) {
             const connectionTypes = ['reverse_ws', 'forward_ws', 'http_post', 'http_api'];
@@ -1452,11 +1832,8 @@
                     const otherElement = document.getElementById(otherKey);
                     if (otherElement && otherElement.checked) {
                         otherElement.checked = false;
-                        // 显示保存按钮
-                        const saveBtn = document.querySelector(`[data-key="${otherKey}"] .btn-save`);
-                        if (saveBtn) {
-                            saveBtn.style.display = 'inline-block';
-                        }
+                        // 记录该配置项的修改
+                        onItemChange(otherKey);
                     }
                 }
             });
@@ -1537,14 +1914,11 @@
                 const data = await response.json();
                 if (data.success) {
                     showMessage('config-message', '配置保存成功', 'success');
-                    const saveBtn = document.querySelector(`[data-key="${key}"] .btn-save`);
-                    if (saveBtn) {
-                        saveBtn.style.display = 'none';
-                    }
                     
                     // 更新本地配置数据
-                    if (configCategories.onebot && configCategories.onebot.items[key]) {
-                        configCategories.onebot.items[key].value = value;
+                    const category = getCategoryByKey(key);
+                    if (category && configCategories[category] && configCategories[category].items[key]) {
+                        configCategories[category].items[key].value = value;
                     }
                     
                     // 如果是连接配置，处理连接互斥和更新状态显示
@@ -1762,12 +2136,18 @@
         
         function showMessage(containerId, text, type) {
             const container = document.getElementById(containerId);
+            if (!container) {
+                console.warn(`消息容器不存在: ${containerId}`);
+                return;
+            }
             container.textContent = text;
             container.className = `alert alert-${type}`;
             container.classList.remove('d-none');
             
             setTimeout(() => {
-                container.classList.add('d-none');
+                if (container) {
+                    container.classList.add('d-none');
+                }
             }, 5000);
         }
         

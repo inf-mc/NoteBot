@@ -2,7 +2,7 @@
   "server": {
     "port": 3000,
     "host": "0.0.0.0",
-    "env": "development"
+    "env": "production"
   },
   "redis": {
     "host": "localhost",
@@ -27,10 +27,11 @@
       },
       "forward_ws": {
         "enabled": true,
-        "url": "",
-        "accessToken": "",
+        "url": "ws://lingran.xin:3001",
+        "accessToken": "w#aw|0[}#Vo7a:D8",
         "heartbeatInterval": 30000,
-        "reconnectInterval": 3001,
+        "enableHeartbeat": true,
+        "reconnectInterval": 5000,
         "maxReconnectAttempts": 10,
         "connectionTimeout": 10000
       },
@@ -93,6 +94,11 @@
     "enabled": false,
     "interval": 60000,
     "metricsRetention": 604800000
+  },
+  "logAnalyzer": {
+    "errorThreshold": 10,
+    "warningThreshold": 20,
+    "timeWindow": 300000
   },
   "cluster": {
     "enabled": false,
