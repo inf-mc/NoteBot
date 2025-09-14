@@ -117,6 +117,10 @@ npm run dev
 npm start
 ```
 
+
+
+
+
 #### 5. 访问管理界面
 
 打开浏览器访问：`http://localhost:3000`
@@ -143,7 +147,7 @@ NoteBot/
 │   ├── monitor/            # 监控模块
 │   │   ├── index.js
 │   │   ├── profiler.js     # 性能分析
-│   │   └── logAnalyzer.js  # 日志分析
+
 │   ├── plugins/            # 插件系统
 │   │   ├── base/           # 基础插件类
 │   │   ├── communication/  # 插件通信
@@ -293,79 +297,11 @@ NoteBot/
 ### 创建插件
 
 1. 在 `plugins/` 目录下创建插件文件夹
-2. 创建 `index.js` 主文件
-3. 创建 `plugin.json` 配置文件
+2. 创建 `/src/index.js` 主文件
+3. 创建 `config.json` 插件配置文件
+4. 创建 `/web/index.html` 插件管理后台自定义管理页（可以，插件配置项内控制是否启用，不使用则使用webui通用插件管理页。可自定义编写js）
 
 ### 插件示例
-
-```javascript
-const BasePlugin = require('../../src/plugins/base');
-
-class MyPlugin extends BasePlugin {
-    constructor() {
-        super({
-            name: 'my-plugin',
-            version: '1.0.0',
-            description: '我的插件',
-            author: 'Your Name'
-        });
-    }
-
-    async initialize() {
-        await super.initialize();
-        
-        // 注册消息处理器
-        this.registerMessageHandler('private', this.handleMessage.bind(this));
-        
-        // 注册命令
-        this.registerCommand('hello', this.handleHello.bind(this));
-        
-        // 注册定时任务
-        this.registerScheduledTask('daily-task', '0 0 * * *', this.dailyTask.bind(this));
-    }
-
-    async handleMessage(message) {
-        // 处理消息
-    }
-
-    async handleHello(message, args) {
-        await this.sendMessage(message.user_id, 'Hello World!');
-    }
-
-    async dailyTask() {
-        // 每日任务
-    }
-}
-
-module.exports = MyPlugin;
-```
-
-### 插件配置
-
-```json
-{
-  "name": "my-plugin",
-  "version": "1.0.0",
-  "description": "我的插件",
-  "author": "Your Name",
-  "main": "index.js",
-  "notebot": {
-    "apiVersion": "1.0.0",
-    "permissions": [
-      "message.send",
-      "data.read",
-      "data.write"
-    ],
-    "commands": [
-      {
-        "name": "hello",
-        "description": "打招呼",
-        "usage": "/hello"
-      }
-    ]
-  }
-}
-```
 
 ## 📊 API 文档
 
@@ -456,11 +392,6 @@ npm install
 # 启动开发模式
 npm run dev
 
-# 运行测试
-npm test
-
-# 代码检查
-npm run lint
 ```
 
 ### 调试技巧

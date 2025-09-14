@@ -209,6 +209,16 @@ class MessageHandler {
       // 确定消息类型
       const messageType = this.getMessageType(message);
       
+      // 更新OneBot核心模块的消息统计
+      if (message.post_type === 'message') {
+        this.onebot.messageStats.totalMessages++;
+        if (message.message_type === 'private') {
+          this.onebot.messageStats.privateMessages++;
+        } else if (message.message_type === 'group') {
+          this.onebot.messageStats.groupMessages++;
+        }
+      }
+      
       // 查找对应的处理器
       const handler = this.eventHandlers.get(messageType);
       if (handler) {

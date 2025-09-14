@@ -67,10 +67,23 @@ class PluginManager extends EventEmitter {
         // 检查插件是否有对应的事件处理方法
         let handlerMethod = null;
         
-        if (event === 'private_message' && typeof instance.handlePrivateMessage === 'function') {
-          handlerMethod = instance.handlePrivateMessage.bind(instance);
-        } else if (event === 'group_message' && typeof instance.handleGroupMessage === 'function') {
-          handlerMethod = instance.handleGroupMessage.bind(instance);
+        if (event === 'private_message' || event === 'group_message') {
+          // 对于消息事件，优先调用onMessage方法（包含命令处理逻辑）
+          if (typeof instance.onMessage === 'function') {
+            const messageContext = {
+              from: 'onebot',
+              event: event,
+              timestamp: Date.now()
+            };
+            handlerMethod = () => instance.onMessage(data, messageContext);
+          } else {
+            // 如果没有onMessage方法，回退到原有的处理方式
+            if (event === 'private_message' && typeof instance.handlePrivateMessage === 'function') {
+              handlerMethod = instance.handlePrivateMessage.bind(instance);
+            } else if (event === 'group_message' && typeof instance.handleGroupMessage === 'function') {
+              handlerMethod = instance.handleGroupMessage.bind(instance);
+            }
+          }
         } else if (event.startsWith('notice.') || event.startsWith('request.')) {
           // 对于通知和请求事件，查找对应的处理方法
           const methodName = this.getEventHandlerMethodName(event);
@@ -489,12 +502,19 @@ class PluginManager extends EventEmitter {
    * 创建插件上下文
    */
   createPluginContext(name, config) {
+    // 构建插件配置，将notebot.commands映射到config.commands
+    const pluginConfig = {
+      ...config.notebot?.config?.default || {},
+      commands: config.notebot?.commands || []
+    };
+    
     const context = {
       name,
-      config,
+      config: pluginConfig,
       logger: logger.child({ plugin: name }),
       redis: this.redis,
       onebot: this.onebot,
+      pluginManager: this,
       
       // 事件系统
       on: (event, handler) => this.on(`plugin:${name}:${event}`, handler),

@@ -4,6 +4,14 @@
     "host": "0.0.0.0",
     "env": "production"
   },
+  "bot": {
+    "admins": [
+      "123456"
+    ],
+    "owners": [
+      "123456"
+    ]
+  },
   "redis": {
     "host": "localhost",
     "port": 6379,
@@ -26,9 +34,9 @@
         "maxConnections": 10
       },
       "forward_ws": {
-        "enabled": true,
-        "url": "ws://lingran.xin:3001",
-        "accessToken": "w#aw|0[}#Vo7a:D8",
+        "enabled": false,
+        "url": "ws://127.0.0.1:8080",
+        "accessToken": "123456",
         "heartbeatInterval": 30000,
         "enableHeartbeat": true,
         "reconnectInterval": 5000,
@@ -95,14 +103,13 @@
     "interval": 60000,
     "metricsRetention": 604800000
   },
-  "logAnalyzer": {
-    "errorThreshold": 10,
-    "warningThreshold": 20,
-    "timeWindow": 300000
-  },
+
   "cluster": {
     "enabled": false,
     "workers": 4,
     "restartDelay": 1000
+  },
+  "puppeteer": {
+    "enabled": true
   }
 }

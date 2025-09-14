@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>示例插件管理 - NoteBot</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 页面头部 -->
+        <header class="page-header">
+            <div class="header-content">
+                <div class="plugin-info">
+                    <i class="fas fa-puzzle-piece plugin-icon"></i>
+                    <div>
+                        <h1>示例插件管理</h1>
+                        <p class="plugin-description">配置和管理示例插件的各项功能</p>
+                    </div>
+                </div>
+                <div class="plugin-status">
+                    <span class="status-label">状态:</span>
+                    <span id="plugin-status" class="status-badge status-loading">
+                        <i class="fas fa-spinner fa-spin"></i> 加载中
+                    </span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要内容区域 -->
+        <main class="main-content">
+            <!-- 快速操作面板 -->
+            <section class="quick-actions">
+                <h2><i class="fas fa-bolt"></i> 快速操作</h2>
+                <div class="action-buttons">
+                    <button id="toggle-plugin" class="btn btn-primary" disabled>
+                        <i class="fas fa-power-off"></i>
+                        <span id="toggle-text">启用插件</span>
+                    </button>
+                    <button id="reload-config" class="btn btn-secondary">
+                        <i class="fas fa-sync-alt"></i> 重新加载配置
+                    </button>
+                    <button id="test-plugin" class="btn btn-info">
+                        <i class="fas fa-vial"></i> 测试插件
+                    </button>
+                    <button id="export-config" class="btn btn-success">
+                        <i class="fas fa-download"></i> 导出配置
+                    </button>
+                </div>
+            </section>
+
+            <!-- 配置表单 -->
+            <section class="config-section">
+                <h2><i class="fas fa-cogs"></i> 插件配置</h2>
+                
+                <!-- 基础配置 -->
+                <div class="config-group">
+                    <h3>基础设置</h3>
+                    <form id="basic-config-form">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="param1">参数1 (param1)</label>
+                                <input type="text" id="param1" name="param1" placeholder="输入字符串参数">
+                                <small class="form-help">示例字符串参数，用于演示配置功能</small>
+                            </div>
+                            <div class="form-group">
+                                <label for="param2">参数2 (param2)</label>
+                                <input type="number" id="param2" name="param2" placeholder="输入数字参数">
+                                <small class="form-help">示例数字参数，必须为整数</small>
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="required_param">必需参数 (required_param) <span class="required">*</span></label>
+                            <input type="text" id="required_param" name="required_param" required placeholder="输入必需参数">
+                            <small class="form-help">这是必需的配置参数，不能为空</small>
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="greeting">问候语</label>
+                                <input type="text" id="greeting" name="greeting" placeholder="输入问候语">
+                            </div>
+                            <div class="form-group">
+                                <label for="timeout">超时时间 (毫秒)</label>
+                                <input type="number" id="timeout" name="timeout" min="1000" max="60000" step="1000">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- 功能开关 -->
+                <div class="config-group">
+                    <h3>功能开关</h3>
+                    <div class="switch-group">
+                        <div class="switch-item">
+                            <label class="switch">
+                                <input type="checkbox" id="welcome_enabled" name="welcome_enabled">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="switch-info">
+                                <span class="switch-label">欢迎消息</span>
+                                <small>启用新用户加入时的欢迎消息</small>
+                            </div>
+                        </div>
+                        
+                        <div class="switch-item">
+                            <label class="switch">
+                                <input type="checkbox" id="debug_mode" name="debug_mode">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="switch-info">
+                                <span class="switch-label">调试模式</span>
+                                <small>启用详细的调试日志输出</small>
+                            </div>
+                        </div>
+                        
+                        <div class="switch-item">
+                            <label class="switch">
+                                <input type="checkbox" id="auto_reply" name="features.auto_reply">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="switch-info">
+                                <span class="switch-label">自动回复</span>
+                                <small>启用自动回复功能</small>
+                            </div>
+                        </div>
+                        
+                        <div class="switch-item">
+                            <label class="switch">
+                                <input type="checkbox" id="command_logging" name="features.command_logging">
+                                <span class="slider"></span>
+                            </label>
+                            <div class="switch-info">
+                                <span class="switch-label">命令日志</span>
+                                <small>记录所有命令执行日志</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 高级配置 -->
+                <div class="config-group">
+                    <h3>高级设置</h3>
+                    <div class="advanced-config" id="advanced-config">
+                        <div class="form-group">
+                            <label for="api_base_url">API基础URL</label>
+                            <input type="url" id="api_base_url" name="api_base_url" placeholder="https://api.example.com">
+                        </div>
+                        
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="max_retries">最大重试次数</label>
+                                <input type="number" id="max_retries" name="max_retries" min="0" max="10">
+                            </div>
+                            <div class="form-group">
+                                <label for="rate_limit">速率限制</label>
+                                <input type="number" id="rate_limit" name="limits.rate_limit" min="1" max="100">
+                            </div>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="welcome_message">欢迎消息内容</label>
+                            <textarea id="welcome_message" name="welcome_message" rows="3" placeholder="输入欢迎消息内容"></textarea>
+                        </div>
+                    </div>
+                    
+                    <button type="button" id="toggle-advanced" class="btn btn-link">
+                        <i class="fas fa-chevron-down"></i> 显示高级选项
+                    </button>
+                </div>
+
+                <!-- 操作按钮 -->
+                <div class="form-actions">
+                    <button type="button" id="save-config" class="btn btn-primary">
+                        <i class="fas fa-save"></i> 保存配置
+                    </button>
+                    <button type="button" id="reset-config" class="btn btn-warning">
+                        <i class="fas fa-undo"></i> 重置配置
+                    </button>
+                    <button type="button" id="load-defaults" class="btn btn-secondary">
+                        <i class="fas fa-file-import"></i> 加载默认值
+                    </button>
+                </div>
+            </section>
+
+            <!-- 插件状态信息 -->
+            <section class="status-section">
+                <h2><i class="fas fa-info-circle"></i> 状态信息</h2>
+                <div class="status-grid">
+                    <div class="status-card">
+                        <div class="status-header">
+                            <i class="fas fa-chart-line"></i>
+                            <span>运行统计</span>
+                        </div>
+                        <div class="status-content">
+                            <div class="stat-item">
+                                <span class="stat-label">消息处理数:</span>
+                                <span id="message-count" class="stat-value">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">最后活动:</span>
+                                <span id="last-activity" class="stat-value">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">运行时间:</span>
+                                <span id="uptime" class="stat-value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="status-card">
+                        <div class="status-header">
+                            <i class="fas fa-memory"></i>
+                            <span>系统资源</span>
+                        </div>
+                        <div class="status-content">
+                            <div class="stat-item">
+                                <span class="stat-label">内存使用:</span>
+                                <span id="memory-usage" class="stat-value">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">CPU使用:</span>
+                                <span id="cpu-usage" class="stat-value">-</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- 页面底部 -->
+        <footer class="page-footer">
+            <div class="footer-content">
+                <p>&copy; 2024 NoteBot Team. 示例插件 v1.0.0</p>
+                <div class="footer-links">
+                    <a href="#" target="_blank"><i class="fas fa-book"></i> 文档</a>
+                    <a href="#" target="_blank"><i class="fab fa-github"></i> GitHub</a>
+                    <a href="#" target="_blank"><i class="fas fa-bug"></i> 反馈</a>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 消息提示 -->
+    <div id="message-toast" class="toast">
+        <div class="toast-content">
+            <i class="toast-icon"></i>
+            <span class="toast-text"></span>
+        </div>
+        <button class="toast-close">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <!-- 确认对话框 -->
+    <div id="confirm-dialog" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="confirm-title">确认操作</h3>
+                <button class="modal-close">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p id="confirm-message">确定要执行此操作吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button id="confirm-cancel" class="btn btn-secondary">取消</button>
+                <button id="confirm-ok" class="btn btn-primary">确定</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

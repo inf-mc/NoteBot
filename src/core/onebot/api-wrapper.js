@@ -3,9 +3,12 @@
  * 为插件提供便捷的API调用接口
  */
 
+const plugin = require("eslint-plugin-import");
+
 class OneBotApiWrapper {
-  constructor(onebotCore) {
+  constructor(onebotCore, pluginName = 'Unknown') {
     this.onebot = onebotCore;
+    this.pluginName = pluginName;
   }
 
   // ==================== 消息相关 ====================
@@ -18,6 +21,18 @@ class OneBotApiWrapper {
    * @returns {Promise<Object>} 发送结果
    */
   async sendPrivateMessage(userId, message, autoEscape = false) {
+    // 格式化消息内容用于日志显示
+    let messageText = Array.isArray(message) ? JSON.stringify(message) : String(message);
+    
+    // 如果消息包含换行符，只显示第一行并添加省略号
+    if (messageText.includes('\n')) {
+      const firstLine = messageText.split('\n')[0];
+      messageText = firstLine + '...';
+    }
+    
+    // 记录发送日志
+    console.log(`[${this.pluginName}] -> 私聊 (${userId}) ${messageText}`);
+    
     return this.onebot.sendPrivateMessage(userId, message, autoEscape);
   }
 
@@ -29,6 +44,44 @@ class OneBotApiWrapper {
    * @returns {Promise<Object>} 发送结果
    */
   async sendGroupMessage(groupId, message, autoEscape = false) {
+    // 格式化消息内容用于日志显示
+    let messageText = Array.isArray(message) ? JSON.stringify(message) : String(message);
+    
+    // 如果消息包含换行符，只显示第一行并添加省略号
+    if (messageText.includes('\n')) {
+      const firstLine = messageText.split('\n')[0];
+      messageText = firstLine + '...';
+    }
+    
+    // 获取群信息和机器人信息用于日志显示
+    let groupName = groupId;
+    let botName = 'Bot';
+    let botId = 'unknown';
+    
+    try {
+      // 尝试获取群信息
+      const groupInfo = await this.onebot.callApi('get_group_info', { group_id: groupId });
+      if (groupInfo && groupInfo.group_name) {
+        groupName = `${groupInfo.group_name}(${groupId})`;
+      }
+    } catch (error) {
+      // 获取群信息失败，使用默认值
+    }
+    
+    try {
+      // 尝试获取机器人信息
+      const botInfo = await this.onebot.callApi('get_login_info');
+      if (botInfo) {
+        botName = botInfo.nickname || 'Bot';
+        botId = botInfo.user_id || 'unknown';
+      }
+    } catch (error) {
+      // 获取机器人信息失败，使用默认值
+    }
+    
+    // 记录发送日志
+    logger.info(`[${this.pluginName}] -> 群聊 [${groupName}] [${botName}(${botId})] ${messageText}`); 
+    
     return this.onebot.sendGroupMessage(groupId, message, autoEscape);
   }
 

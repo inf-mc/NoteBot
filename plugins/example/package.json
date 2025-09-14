@@ -1,0 +1,39 @@
+{
+  "name": "notebot-example-plugin",
+  "version": "1.0.0",
+  "description": "NoteBot示例插件，展示插件开发的基本功能和最佳实践",
+  "main": "index.js",
+  "keywords": [
+    "notebot",
+    "plugin",
+    "example",
+    "demo"
+  ],
+  "author": "NoteBot Team",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "lodash": "^4.17.21",
+    "moment": "^2.29.4"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "jest": "^29.0.0"
+  },
+  "scripts": {
+    "test": "jest",
+    "lint": "eslint .",
+    "start": "node index.js"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/notebot/example-plugin.git"
+  },
+  "bugs": {
+    "url": "https://github.com/notebot/example-plugin/issues"
+  },
+  "homepage": "https://github.com/notebot/example-plugin#readme"
+}

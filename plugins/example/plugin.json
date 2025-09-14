@@ -1,351 +1,229 @@
 {
   "name": "example",
   "version": "1.0.0",
-  "description": "示例插件，演示NoteBot插件系统的基本功能和使用方法",
-  "author": "NoteBot Team",
-  "license": "MIT",
+  "description": "NoteBot示例插件配置文件",
   "main": "index.js",
-  "keywords": [
-    "example",
-    "demo",
-    "tutorial",
-    "bot",
-    "plugin"
+  "enabled": true,
+  "priority": 100,
+  "dependencies": [
+    "base",
+    "puppeteer"
   ],
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/notebot/plugins"
-  },
-  "bugs": {
-    "url": "https://github.com/notebot/plugins/issues"
-  },
-  "homepage": "https://github.com/notebot/plugins#readme",
-  "engines": {
-    "node": ">=14.0.0"
+  "permissions": [
+    "message.send",
+    "message.receive",
+    "config.read",
+    "config.write",
+    "api.call",
+    "puppeteer.use",
+    "scheduler.manage"
+  ],
+  "settings": {
+    "param1": "示例字符串参数",
+    "param2": 42,
+    "required_param": "这是必需的配置参数",
+    "greeting": "你好",
+    "welcome_enabled": true,
+    "welcome_message": "欢迎加入我们的群组！",
+    "api_base_url": "https://jsonplaceholder.typicode.com",
+    "timeout": 30000,
+    "max_retries": 3,
+    "debug_mode": false,
+    "log_level": "info",
+    "features": {
+      "auto_reply": true,
+      "command_logging": true,
+      "user_tracking": false,
+      "api_integration": true
+    },
+    "limits": {
+      "max_message_length": 1000,
+      "rate_limit": 10,
+      "concurrent_requests": 5
+    },
+    "ui_config": {
+      "theme": "default",
+      "language": "zh-CN",
+      "show_advanced": false,
+      "auto_save": true
+    }
   },
   "notebot": {
-    "apiVersion": "1.0.0",
-    "minCoreVersion": "1.0.0",
-    "maxCoreVersion": "2.0.0",
-    "category": "utility",
-    "tags": [
-      "example",
-      "demo",
-      "tutorial"
-    ],
-    "permissions": {
-      "required": [
-        "message.send",
-        "data.read",
-        "data.write"
-      ],
-      "optional": [
-        "admin.manage",
-        "system.info"
-      ]
+    "commands": [
+      {
+        "name": "hello",
+        "description": "发送问候消息",
+        "usage": "#hello [名字]",
+        "enabled": true,
+        "permission_required": false
+      },
+      {
+        "name": "config",
+        "description": "查看或设置插件配置",
+        "usage": "#config [参数] [值]",
+        "enabled": true,
+        "permission_required": true
+      },
+      {
+        "name": "status",
+        "description": "查看插件状态",
+        "usage": "#status",
+        "enabled": true,
+        "permission_required": false
+      },
+      {
+        "name": "api",
+        "description": "调用示例API",
+        "usage": "#api [endpoint]",
+        "enabled": true,
+        "permission_required": true
+      },
+      {
+        "name": "resource",
+        "description": "读取示例资源",
+        "usage": "#resource [文件名]",
+        "enabled": true,
+        "permission_required": false
+      },
+      {
+        "name": "screenshot",
+        "description": "网页截图命令",
+        "usage": "#screenshot <url> [width] [height]",
+        "enabled": true,
+        "permission_required": false
+      },
+      {
+        "name": "schedule",
+        "description": "定时任务管理命令",
+        "usage": "#schedule <list|add|remove|status> [name] [cron] [message]",
+        "enabled": true,
+        "permission_required": true
+      }
+    ]
+  },
+  "events": [
+    {
+      "name": "message",
+      "handler": "onMessageReceived",
+      "enabled": true
     },
-    "dependencies": {
-      "core": ">=1.0.0",
-      "plugins": {}
+    {
+      "name": "user.join",
+      "handler": "onUserJoin",
+      "enabled": true
     },
+    {
+      "name": "user.leave",
+      "handler": "onUserLeave",
+      "enabled": true
+    },
+    {
+      "name": "config.update",
+      "handler": "onConfigUpdate",
+      "enabled": true
+    }
+  ],
+  "web_interface": {
+    "enabled": true,
+    "path": "/plugins/example",
+    "title": "示例插件管理",
+    "description": "示例插件的配置和管理界面",
+    "icon": "fas fa-cog",
+    "menu_order": 100
+  },
+  "notebot": {
     "config": {
-      "schema": {
-        "type": "object",
-        "properties": {
-          "welcomeMessage": {
-            "type": "string",
-            "default": "欢迎使用示例插件！",
-            "description": "新用户欢迎消息"
+      "default": {
+        "settings": {
+          "param1": "示例字符串参数",
+          "param2": 42,
+          "required_param": "这是必需的配置参数",
+          "greeting": "你好",
+          "welcome_enabled": true,
+          "welcome_message": "欢迎加入我们的群组！",
+          "api_base_url": "https://jsonplaceholder.typicode.com",
+          "timeout": 30000,
+          "max_retries": 3,
+          "debug_mode": false,
+          "log_level": "info",
+          "features": {
+            "auto_reply": true,
+            "command_logging": true,
+            "user_tracking": false,
+            "api_integration": true
           },
-          "enableStats": {
-            "type": "boolean",
-            "default": true,
-            "description": "是否启用统计功能"
+          "limits": {
+            "max_message_length": 1000,
+            "rate_limit": 10,
+            "concurrent_requests": 5
           },
-          "maxMessageLength": {
-            "type": "integer",
-            "default": 1000,
-            "minimum": 1,
-            "maximum": 5000,
-            "description": "最大消息长度限制"
-          },
-          "allowedGroups": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [],
-            "description": "允许使用的群组列表（空数组表示所有群组）"
-          },
-          "bannedUsers": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [],
-            "description": "禁用用户列表"
-          },
-          "adminUsers": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            },
-            "default": [],
-            "description": "管理员用户列表"
-          },
-          "autoReply": {
-            "type": "object",
-            "properties": {
-              "enabled": {
-                "type": "boolean",
-                "default": true,
-                "description": "是否启用自动回复"
-              },
-              "keywords": {
-                "type": "object",
-                "additionalProperties": {
-                  "type": "string"
-                },
-                "default": {
-                  "你好": "你好！我是示例插件",
-                  "hello": "Hello! I'm the example plugin",
-                  "时间": "当前时间：{time}",
-                  "帮助": "发送 /help 查看可用命令"
-                },
-                "description": "关键词自动回复配置"
-              }
-            },
-            "default": {
-              "enabled": true,
-              "keywords": {
-                "你好": "你好！我是示例插件",
-                "hello": "Hello! I'm the example plugin",
-                "时间": "当前时间：{time}",
-                "帮助": "发送 /help 查看可用命令"
-              }
-            }
-          },
-          "checkIn": {
-            "type": "object",
-            "properties": {
-              "enabled": {
-                "type": "boolean",
-                "default": true,
-                "description": "是否启用签到功能"
-              },
-              "rewards": {
-                "type": "object",
-                "properties": {
-                  "points": {
-                    "type": "integer",
-                    "default": 10,
-                    "minimum": 0,
-                    "description": "签到获得的积分"
-                  },
-                  "bonus": {
-                    "type": "object",
-                    "properties": {
-                      "consecutive": {
-                        "type": "integer",
-                        "default": 7,
-                        "description": "连续签到天数获得奖励"
-                      },
-                      "points": {
-                        "type": "integer",
-                        "default": 50,
-                        "description": "连续签到奖励积分"
-                      }
-                    }
-                  }
-                }
-              }
-            },
-            "default": {
-              "enabled": true,
-              "rewards": {
-                "points": 10,
-                "bonus": {
-                  "consecutive": 7,
-                  "points": 50
-                }
-              }
-            }
-          },
-          "rateLimiting": {
-            "type": "object",
-            "properties": {
-              "enabled": {
-                "type": "boolean",
-                "default": true,
-                "description": "是否启用频率限制"
-              },
-              "maxRequests": {
-                "type": "integer",
-                "default": 10,
-                "minimum": 1,
-                "description": "每个时间窗口内的最大请求数"
-              },
-              "windowMs": {
-                "type": "integer",
-                "default": 60000,
-                "minimum": 1000,
-                "description": "时间窗口大小（毫秒）"
-              }
-            },
-            "default": {
-              "enabled": true,
-              "maxRequests": 10,
-              "windowMs": 60000
-            }
+          "ui_config": {
+            "theme": "default",
+            "language": "zh-CN",
+            "show_advanced": false,
+            "auto_save": true
           }
         }
-      },
-      "ui": {
-        "form": [
-          {
-            "key": "welcomeMessage",
-            "type": "textarea",
-            "title": "欢迎消息",
-            "placeholder": "输入新用户欢迎消息"
-          },
-          {
-            "key": "enableStats",
-            "type": "checkbox",
-            "title": "启用统计功能"
-          },
-          {
-            "key": "maxMessageLength",
-            "type": "number",
-            "title": "最大消息长度",
-            "minimum": 1,
-            "maximum": 5000
-          },
-          {
-            "key": "allowedGroups",
-            "type": "array",
-            "title": "允许的群组",
-            "items": {
-              "type": "string",
-              "title": "群组ID"
-            }
-          },
-          {
-            "key": "bannedUsers",
-            "type": "array",
-            "title": "禁用用户",
-            "items": {
-              "type": "string",
-              "title": "用户ID"
-            }
-          },
-          {
-            "key": "autoReply.enabled",
-            "type": "checkbox",
-            "title": "启用自动回复"
-          },
-          {
-            "key": "checkIn.enabled",
-            "type": "checkbox",
-            "title": "启用签到功能"
-          },
-          {
-            "key": "rateLimiting.enabled",
-            "type": "checkbox",
-            "title": "启用频率限制"
-          }
-        ]
       }
     },
     "commands": [
       {
-        "name": "help",
-        "description": "显示帮助信息",
-        "usage": "/help",
-        "aliases": [
-          "h",
-          "帮助"
-        ]
+        "name": "hello",
+        "description": "发送问候消息",
+        "usage": "#hello [用户名]",
+        "enabled": true,
+        "permission_required": false
       },
       {
-        "name": "ping",
-        "description": "测试响应时间",
-        "usage": "/ping",
-        "aliases": [
-          "p"
-        ]
+        "name": "config",
+        "description": "配置管理命令",
+        "usage": "#config [参数] [值]",
+        "enabled": true,
+        "permission_required": true
       },
       {
-        "name": "stats",
-        "description": "显示插件统计信息",
-        "usage": "/stats",
-        "aliases": [
-          "统计",
-          "stat"
-        ]
+        "name": "status",
+        "description": "查看插件状态",
+        "usage": "#status",
+        "enabled": true,
+        "permission_required": false
       },
       {
-        "name": "echo",
-        "description": "回显消息",
-        "usage": "/echo <消息内容>",
-        "aliases": [
-          "回显"
-        ]
+        "name": "resource",
+        "description": "获取插件资源",
+        "usage": "#resource [文件名]",
+        "enabled": true,
+        "permission_required": false
       },
       {
-        "name": "time",
-        "description": "显示当前时间",
-        "usage": "/time",
-        "aliases": [
-          "时间",
-          "t"
-        ]
-      }
-    ],
-    "events": [
-      {
-        "name": "message.private",
-        "description": "处理私聊消息"
+        "name": "screenshot",
+        "description": "网页截图命令",
+        "usage": "#screenshot <url> [width] [height]",
+        "enabled": true,
+        "permission_required": false
       },
       {
-        "name": "message.group",
-        "description": "处理群聊消息"
-      },
-      {
-        "name": "notice.friend_add",
-        "description": "处理好友添加通知"
-      },
-      {
-        "name": "notice.group_increase",
-        "description": "处理群成员增加通知"
-      }
-    ],
-    "routes": [
-      {
-        "method": "GET",
-        "path": "/example/stats",
-        "description": "获取插件统计信息",
-        "auth": false
-      },
-      {
-        "method": "POST",
-        "path": "/example/send",
-        "description": "发送消息",
-        "auth": true,
-        "body": {
-          "type": "string",
-          "target": "string",
-          "message": "string"
-        }
-      }
-    ],
-    "scheduledTasks": [
-      {
-        "name": "example-stats",
-        "cron": "0 */10 * * * *",
-        "description": "每10分钟报告统计信息"
+        "name": "schedule",
+        "description": "定时任务管理命令",
+        "usage": "#schedule <list|add|remove|status> [name] [cron] [message]",
+        "enabled": true,
+        "permission_required": true
       }
     ]
   },
-  "path": "D:\\test\\NoteBot\\plugins\\example",
-  "enabled": true
+  "metadata": {
+    "author": "NoteBot Team",
+    "license": "MIT",
+    "repository": "https://github.com/notebot/example-plugin",
+    "homepage": "https://github.com/notebot/example-plugin#readme",
+    "keywords": [
+      "notebot",
+      "plugin",
+      "example",
+      "demo"
+    ],
+    "created_at": "2024-01-15T00:00:00.000Z",
+    "updated_at": "2024-01-15T00:00:00.000Z"
+  },
+  "path": "E:\\INF Server\\NoteBot\\plugins\\example"
 }

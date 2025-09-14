@@ -31,6 +31,14 @@ class OnebotCore extends EventEmitter {
     this.reconnectTimers = new Map();   // 重连定时器
     this.reconnectAttempts = {};        // 重连计数器
     
+    // 消息统计
+    this.messageStats = {
+      totalMessages: 0,
+      privateMessages: 0,
+      groupMessages: 0,
+      startTime: Date.now()
+    };
+    
     this.init();
   }
 
@@ -966,10 +974,21 @@ class OnebotCore extends EventEmitter {
    * 获取连接状态
    */
   getStatus() {
+    const now = Date.now();
+    const uptimeMs = now - this.messageStats.startTime;
+    
     return {
       connected: this.isConnected,
       clientCount: this.httpClients.size,
-      uptime: process.uptime()
+      uptime: process.uptime(),
+      messageStats: {
+        totalMessages: this.messageStats.totalMessages,
+        privateMessages: this.messageStats.privateMessages,
+        groupMessages: this.messageStats.groupMessages,
+        startTime: this.messageStats.startTime,
+        uptimeMs: uptimeMs
+      },
+      onlineUsers: this.httpClients.size // 使用连接的客户端数量作为在线用户数
     };
   }
 

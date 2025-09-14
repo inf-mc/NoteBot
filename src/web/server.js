@@ -14,7 +14,9 @@ class WebServer extends EventEmitter {
         };
         this.app = express();
         this.server = null;
+        this.pluginManager = config.pluginManager;
         this.setupMiddleware();
+        this.setupPluginRoutes();
         this.setupRoutes();
     }
 
@@ -128,6 +130,56 @@ class WebServer extends EventEmitter {
 
     isRunning() {
         return this.server && this.server.listening;
+    }
+
+    setupPluginRoutes() {
+        if (this.pluginManager) {
+            // 监听插件路由注册事件
+            this.pluginManager.on('register_route', (data) => {
+                const { method, path, handler } = data;
+                this.app[method.toLowerCase()](path, handler);
+                logger.info(`注册插件路由: ${method.toUpperCase()} ${path}`);
+            });
+
+            // 监听插件静态文件注册事件
+            this.pluginManager.on('register_static', (data) => {
+                const { urlPath, localPath } = data;
+                this.app.use(urlPath, express.static(localPath));
+                logger.info(`注册插件静态路径: ${urlPath} -> ${localPath}`);
+            });
+            
+            // 注册已加载的插件路由
+            this.registerExistingPluginRoutes();
+        }
+    }
+
+    // 注册已加载插件的路由
+    registerExistingPluginRoutes() {
+        if (this.pluginManager && this.pluginManager.plugins) {
+            for (const [pluginName, pluginData] of this.pluginManager.plugins) {
+                if (pluginData.instance) {
+                    // 注册API路由
+                    if (pluginData.instance.routes) {
+                        // routes是一个Map对象，需要遍历其值
+                        for (const [routeKey, route] of pluginData.instance.routes) {
+                            const { method, path, handler } = route;
+                            if (method && path && handler) {
+                                // 路径已经在插件管理器中添加了前缀，直接使用
+                                this.app[method.toLowerCase()](path, handler);
+                                //logger.info(`注册已存在插件路由: ${method.toUpperCase()} ${path}`);
+                            }
+                        }
+                    }
+                    
+                    // 注册静态文件路由
+                    if (pluginData.instance.webPath) {
+                        const staticUrlPath = `/plugins/${pluginName}/config`;
+                        this.app.use(staticUrlPath, express.static(pluginData.instance.webPath));
+                        //logger.info(`注册已存在插件静态路径: ${staticUrlPath} -> ${pluginData.instance.webPath}`);
+                    }
+                }
+            }
+        }
     }
 }
 

@@ -8,7 +8,7 @@ const taskScheduler = require('./scheduler');
 const webServer = require('./web/server');
 const systemMonitor = require('./monitor');
 const profiler = require('./monitor/profiler');
-const logAnalyzer = require('./monitor/logAnalyzer');
+
 
 /**
  * 主应用程序类
@@ -204,11 +204,7 @@ class Application extends EventEmitter {
             global.profiler = profiler;
         }
         
-        // 启动日志分析器
-        if (config.get('logAnalyzer.enabled', true)) {
-            logAnalyzer.start();
-            global.logAnalyzer = logAnalyzer;
-        }
+
         
         // 监听监控事件
         systemMonitor.on('alert', (alert) => {
@@ -216,15 +212,11 @@ class Application extends EventEmitter {
             this.emit('systemAlert', alert);
         });
         
-        logAnalyzer.on('alert', (alert) => {
-            // 直接发出事件，避免通过logger输出造成循环
-            this.emit('logAlert', alert);
-        });
+
         
         return {
             systemMonitor,
-            profiler,
-            logAnalyzer
+            profiler
         };
     }
 
@@ -354,6 +346,9 @@ class Application extends EventEmitter {
         
         // 启动Web服务器
         await webInstance.start();
+        
+        // 注册已加载插件的路由
+        webInstance.registerExistingPluginRoutes();
         
         // 设置全局引用
         global.webServer = webInstance;
@@ -562,9 +557,7 @@ class Application extends EventEmitter {
                     if (profiler && typeof profiler.stop === 'function') {
                         profiler.stop();
                     }
-                    if (logAnalyzer && typeof logAnalyzer.stop === 'function') {
-                        logAnalyzer.stop();
-                    }
+
                     break;
                 case 'redis':
                     if (redisClient && typeof redisClient.close === 'function') {

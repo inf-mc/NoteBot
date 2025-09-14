@@ -1,567 +1,594 @@
 const BasePlugin = require('../../src/plugins/base');
-const logger = require('../../src/utils/logger');
+const path = require('path');
+const fs = require('fs').promises;
+const cron = require('node-cron');
 
 /**
- * 示例插件
- * 演示插件系统的基本功能和使用方法
+ * 示例插件类
+ * 展示NoteBot插件开发的基本功能和最佳实践
  */
 class ExamplePlugin extends BasePlugin {
-    constructor() {
-        super({
-            name: 'example',
-            version: '1.0.0',
-            description: '示例插件，演示基本功能',
-            author: 'NoteBot Team',
-            dependencies: [],
-            permissions: ['message.send', 'data.read', 'data.write']
-        });
+    constructor(options = {}) {
+        super(options);
         
+        // 插件基本信息
+        this.name = 'example';
+        this.version = '1.0.0';
+        this.description = 'NoteBot示例插件，展示插件开发的基本功能';
+        
+        // 插件状态
+        this.isInitialized = false;
         this.messageCount = 0;
-        this.startTime = Date.now();
+        this.lastActivity = null;
+        
+        // 资源路径
+        this.resourcesPath = path.join(__dirname, 'resources');
+        this.webPath = path.join(__dirname, 'web');
     }
 
     /**
      * 插件初始化
      */
-    async initialize() {
-        await super.initialize();
-        
-        logger.info(`Example plugin initialized at ${new Date().toISOString()} - 热重载测试修复完成`); // 测试热重载修复
-        
-        // 注册消息处理器
-        this.registerMessageHandler('private', this.handlePrivateMessage.bind(this));
-        this.registerMessageHandler('group', this.handleGroupMessage.bind(this));
-        
-        // 注册事件处理器
-        this.registerEventHandler('friend_add', this.handleFriendAdd.bind(this));
-        this.registerEventHandler('group_increase', this.handleGroupIncrease.bind(this));
-        
-        // 注册定时任务
-        this.registerScheduledTask('example-stats', '0 */10 * * * *', this.reportStats.bind(this));
-        
-        // 注册路由
-        this.registerRoute('GET', '/example/stats', this.getStats.bind(this));
-        this.registerRoute('POST', '/example/send', this.sendMessage.bind(this));
-        
-        // 初始化数据
-        await this.initializeData();
-        
-        this.emit('initialized');
-    }
-
-    /**
-     * 获取机器人ID
-     */
-    async getBotId() {
+    async onInit() {
         try {
-            if (this.context?.onebot) {
-                const loginInfo = await this.context.onebot.getLoginInfo();
-                return loginInfo?.user_id?.toString();
-            }
-        } catch (error) {
-            logger.warn('Failed to get bot ID:', error);
-        }
-        return null;
-    }
-
-    /**
-     * 初始化数据
-     */
-    async initializeData() {
-        // 设置默认配置
-        const defaultConfig = {
-            welcomeMessage: '欢迎使用示例插件！',
-            enableStats: true,
-            maxMessageLength: 1000,
-            allowedGroups: [],
-            bannedUsers: []
-        };
-        
-        // 加载或创建配置
-        const config = await this.getData('config') || defaultConfig;
-        await this.setData('config', { ...defaultConfig, ...config });
-        
-        // 初始化统计数据
-        const stats = await this.getData('stats') || {
-            totalMessages: 0,
-            privateMessages: 0,
-            groupMessages: 0,
-            commandsExecuted: 0,
-            lastReset: Date.now()
-        };
-        await this.setData('stats', stats);
-        
-        logger.info('Example plugin data initialized');
-    }
-
-    /**
-     * 处理私聊消息
-     */
-    async handlePrivateMessage(data) {
-        try {
-            this.messageCount++;
+            this.logger.info('示例插件开始初始化...');
             
-            // 更新统计
-            await this.updateStats('privateMessages');
+            // 注册命令
+            this.registerCommands();
             
-            // 适配新的数据结构
-            const user_id = data.userId;
-            const raw_message = data.message;
-            const message = data.rawData || data;
+            // 注册事件处理器
+            this.registerEventHandlers();
             
-            // 检查消息内容是否存在
-            if (!raw_message) {
-                logger.warn(`Received empty message from ${user_id}`);
-                return;
-            }
+            // 注册Web路由和静态文件
+            this.registerWebRoutes();
             
-            logger.info(`Received private message from ${user_id}: ${raw_message}`);
+            // 初始化资源
+            await this.initializeResources();
             
-            // 检查用户是否被禁用
-            const config = await this.getData('config') || {
-                allowedGroups: [],
-                bannedUsers: [],
-                welcomeMessage: '你好！欢迎使用示例插件！'
-            };
-            const bannedUsers = config.bannedUsers || [];
-            const welcomeMessage = config.welcomeMessage || '你好！欢迎使用示例插件！';
+            // 验证配置
+            this.validateConfig();
             
-            if (bannedUsers.includes(user_id)) {
-                logger.warn(`Ignored message from banned user: ${user_id}`);
-                return;
-            }
-            
-            // 处理命令
-            if (raw_message.startsWith('/')) {
-                await this.handleCommand(message);
-                return;
-            }
-            
-            // 简单的回复逻辑
-            if (raw_message.includes('你好') || raw_message.includes('hello')) {
-                await this.api.sendPrivateMessage(user_id, welcomeMessage);
-            } else if (raw_message.includes('时间')) {
-                const now = new Date().toLocaleString('zh-CN');
-                await this.api.sendPrivateMessage(user_id, `当前时间：${now}`);
-            } else if (raw_message.includes('统计')) {
-                const stats = await this.getStats();
-                const statsMessage = `插件统计信息：\n` +
-                    `总消息数：${stats.totalMessages}\n` +
-                    `私聊消息：${stats.privateMessages}\n` +
-                    `群聊消息：${stats.groupMessages}\n` +
-                    `运行时间：${this.getUptime()}`;
-                await this.api.sendPrivateMessage(user_id, statsMessage);
-            }
+            this.isInitialized = true;
+            this.logger.info('示例插件初始化完成');
             
         } catch (error) {
-            logger.error('Error handling private message:', error);
+            this.logger.error('示例插件初始化失败:', error);
+            throw error;
         }
     }
 
     /**
-     * 处理群聊消息
+     * 注册命令
      */
-    async handleGroupMessage(data) {
+    registerCommands() {
+        // 基础命令
+        this.registerCommand({
+            name: 'hello',
+            description: '发送问候消息',
+            usage: '#hello [名字]',
+            handler: this.handleHelloCommand.bind(this)
+        });
+
+        // 配置命令
+        this.registerCommand({
+            name: 'config',
+            description: '查看或设置插件配置',
+            usage: '#config [参数] [值]',
+            handler: this.handleConfigCommand.bind(this)
+        });
+
+        // 状态命令
+        this.registerCommand({
+            name: 'status',
+            description: '查看插件状态',
+            usage: '#status',
+            handler: this.handleStatusCommand.bind(this)
+        });
+
+        // 示例API命令
+        this.registerCommand({
+            name: 'api',
+            description: '调用示例API',
+            usage: '#api [endpoint]',
+            handler: this.handleApiCommand.bind(this)
+        });
+
+        // 资源命令
+        this.registerCommand({
+            name: 'resource',
+            description: '读取示例资源',
+            usage: '#resource [文件名]',
+            handler: this.handleResourceCommand.bind(this)
+        });
+
+        // 生图命令 - 使用Puppeteer模块
+        this.registerCommand({
+            name: 'screenshot',
+            description: '网页截图命令',
+            usage: '#screenshot <url> [width] [height]',
+            permission: 'user',
+            handler: this.handleScreenshotCommand.bind(this)
+        });
+
+        // 定时任务管理命令
+        this.registerCommand({
+            name: 'schedule',
+            description: '定时任务管理命令',
+            usage: '#schedule <list|add|remove|status> [name] [cron] [message]',
+            permission: 'admin',
+            handler: this.handleScheduleCommand.bind(this)
+        });
+    }
+
+    /**
+     * 注册事件处理器
+     */
+    registerEventHandlers() {
+        // 消息事件
+        this.on('message', this.onMessageReceived.bind(this));
+        
+        // 用户加入事件
+        this.on('user.join', this.onUserJoin.bind(this));
+        
+        // 用户离开事件
+        this.on('user.leave', this.onUserLeave.bind(this));
+        
+        // 配置更新事件
+        this.on('config.update', this.onConfigUpdate.bind(this));
+    }
+
+    /**
+     * 注册Web路由和静态文件
+     */
+    registerWebRoutes() {
         try {
-            this.messageCount++;
+            // 注册静态文件路径，将web目录映射到 /plugins/example/config
+            this.registerStaticPath('/config', this.webPath);
             
-            // 更新统计
-            await this.updateStats('groupMessages');
+            // 注册API路由
+            this.registerRoute('GET', '/api/config', this.handleGetConfig.bind(this));
+            this.registerRoute('POST', '/api/config', this.handleUpdateConfig.bind(this));
+            this.registerRoute('PUT', '/api/config', this.handleUpdateConfig.bind(this));
+            this.registerRoute('GET', '/api/config/defaults', this.handleGetDefaults.bind(this));
+            this.registerRoute('GET', '/api/status', this.handleGetStatus.bind(this));
+            this.registerRoute('POST', '/api/toggle', this.handleTogglePlugin.bind(this));
             
-            // 适配新的数据结构
-            const group_id = data.groupId;
-            const user_id = data.userId;
-            const raw_message = data.message;
-            const message = data.rawData || data;
-            
-            // 检查消息内容是否存在
-            if (!raw_message) {
-                logger.warn(`Received empty message from ${user_id} in ${group_id}`);
-                return;
-            }
-            
-            logger.debug(`Received group message from ${user_id} in ${group_id}: ${raw_message}`);
-            
-            // 检查群组是否允许
-            const config = await this.getData('config') || {
-                allowedGroups: [],
-                bannedUsers: []
-            };
-            const allowedGroups = config.allowedGroups || [];
-            const bannedUsers = config.bannedUsers || [];
-            
-            if (allowedGroups.length > 0 && !allowedGroups.includes(group_id)) {
-                return;
-            }
-            
-            // 检查用户是否被禁用
-            if (bannedUsers.includes(user_id)) {
-                return;
-            }
-            
-            // 处理 @ 消息
-            if (raw_message.includes('[CQ:at,qq=')) {
-                // 获取机器人ID
-                const botId = this.context?.onebot?.botId || await this.getBotId();
-                if (botId && raw_message.includes(botId)) {
-                    await this.handleAtMessage(message);
-                    return;
-                }
-            }
-            
-            // 处理命令
-            if (raw_message.startsWith('/')) {
-                await this.handleCommand(message);
-                return;
-            }
-            
-            // 关键词回复
-            if (raw_message.includes('签到')) {
-                await this.handleCheckIn(message);
-            }
-            
+            this.logger.info('Web路由注册完成');
         } catch (error) {
-            logger.error('Error handling group message:', error);
+            this.logger.error('Web路由注册失败:', error);
         }
     }
 
     /**
-     * 处理命令
+     * 初始化资源
      */
-    async handleCommand(message) {
-        const { user_id, group_id, raw_message } = message;
-        const command = raw_message.split(' ')[0].substring(1); // 移除 '/'
-        const args = raw_message.split(' ').slice(1);
-        
-        await this.updateStats('commandsExecuted');
-        
-        logger.info(`Executing command: ${command} with args:`, args);
-        
-        switch (command) {
-            case 'help':
-                await this.sendHelpMessage(message);
-                break;
-                
-            case 'ping':
-                const responseTime = Date.now() - message.time * 1000;
-                const reply = `Pong! 响应时间: ${responseTime}ms`;
-                if (group_id) {
-                    await this.api.sendGroupMessage(group_id, reply);
-                } else {
-                    await this.api.sendPrivateMessage(user_id, reply);
-                }
-                break;
-                
-            case 'stats':
-                const stats = await this.getStats();
-                const statsMessage = this.formatStats(stats);
-                if (group_id) {
-                    await this.api.sendGroupMessage(group_id, statsMessage);
-                } else {
-                    await this.api.sendPrivateMessage(user_id, statsMessage);
-                }
-                break;
-                
-            case 'echo':
-                const echoMessage = args.join(' ') || '请提供要回显的内容';
-                if (group_id) {
-                    await this.api.sendGroupMessage(group_id, echoMessage);
-                } else {
-                    await this.api.sendPrivateMessage(user_id, echoMessage);
-                }
-                break;
-                
-            case 'time':
-                const now = new Date().toLocaleString('zh-CN');
-                const timeMessage = `当前时间：${now}`;
-                if (group_id) {
-                    await this.api.sendGroupMessage(group_id, timeMessage);
-                } else {
-                    await this.api.sendPrivateMessage(user_id, timeMessage);
-                }
-                break;
-                
-            default:
-                const unknownMessage = `未知命令: ${command}。使用 /help 查看可用命令。`;
-                if (group_id) {
-                    await this.api.sendGroupMessage(group_id, unknownMessage);
-                } else {
-                    await this.api.sendPrivateMessage(user_id, unknownMessage);
-                }
+    async initializeResources() {
+        try {
+            // 检查资源目录
+            await fs.access(this.resourcesPath);
+            this.logger.info('资源目录验证成功');
+        } catch (error) {
+            this.logger.warn('资源目录不存在，将创建默认资源');
+            await this.createDefaultResources();
         }
     }
 
     /**
-     * 发送帮助消息
+     * 创建默认资源
      */
-    async sendHelpMessage(message) {
-        const { user_id, group_id } = message;
+    async createDefaultResources() {
+        try {
+            await fs.mkdir(this.resourcesPath, { recursive: true });
+            
+            const exampleContent = `这是一个示例资源文件\n创建时间: ${new Date().toLocaleString('zh-CN')}\n\n这个文件展示了插件如何管理静态资源。\n你可以在这里存储:\n- 配置模板\n- 静态文件\n- 数据文件\n- 其他资源`;
+            
+            await fs.writeFile(
+                path.join(this.resourcesPath, 'example.txt'),
+                exampleContent,
+                'utf8'
+            );
+            
+            this.logger.info('默认资源创建成功');
+        } catch (error) {
+            this.logger.error('创建默认资源失败:', error);
+        }
+    }
+
+    /**
+     * 验证配置
+     */
+    validateConfig() {
+        const config = this.getConfig();
         
-        const helpText = `示例插件帮助：\n` +
-            `/help - 显示此帮助信息\n` +
-            `/ping - 测试响应时间\n` +
-            `/stats - 显示插件统计信息\n` +
-            `/echo <消息> - 回显消息\n` +
-            `/time - 显示当前时间\n` +
-            `\n其他功能：\n` +
-            `- 发送"你好"或"hello"获得欢迎消息\n` +
-            `- 发送"时间"获取当前时间\n` +
-            `- 发送"统计"查看统计信息\n` +
-            `- 在群聊中发送"签到"进行签到`;
+        // 检查必需参数
+        const requiredParams = ['param1', 'param2', 'required_param'];
+        const missingParams = requiredParams.filter(param => !config[param]);
         
-        if (group_id) {
-            await this.api.sendGroupMessage(group_id, helpText);
+        if (missingParams.length > 0) {
+            this.logger.warn('缺少必需配置参数:', missingParams);
+        }
+        
+        // 验证参数类型
+        if (config.param1 && typeof config.param1 !== 'string') {
+            this.logger.warn('param1应该是字符串类型');
+        }
+        
+        if (config.param2 && typeof config.param2 !== 'number') {
+            this.logger.warn('param2应该是数字类型');
+        }
+    }
+
+    /**
+     * Hello命令处理器
+     */
+    async handleHelloCommand(context) {
+        const { message, args } = context;
+        const name = args.length > 0 ? args.join(' ') : '朋友';
+        
+        const config = this.getConfig();
+        const greeting = config.greeting || '你好';
+        
+        const responseText = `${greeting}, ${name}! 欢迎使用示例插件！`;
+        
+        // 根据消息类型发送回复
+        if (message.message_type === 'group') {
+            await this.api.sendGroupMessage(message.group_id, responseText);
+        } else if (message.message_type === 'private') {
+            await this.api.sendPrivateMessage(message.user_id, responseText);
+        }
+    }
+
+    /**
+     * 配置命令处理器
+     */
+    async handleConfigCommand(context) {
+        const { message, args } = context;
+        let responseText = '';
+        
+        if (args.length === 0) {
+            // 显示当前配置
+            const config = this.getConfig();
+            const configText = JSON.stringify(config, null, 2);
+            responseText = `当前配置:\n\`\`\`json\n${configText}\n\`\`\``;
+        } else if (args.length === 1) {
+            // 显示特定配置项
+            const param = args[0];
+            const config = this.getConfig();
+            const value = config[param];
+            
+            if (value !== undefined) {
+                responseText = `${param}: ${JSON.stringify(value)}`;
+            } else {
+                responseText = `配置参数 '${param}' 不存在`;
+            }
         } else {
-            await this.api.sendPrivateMessage(user_id, helpText);
+            // 设置配置项
+            const param = args[0];
+            const value = args.slice(1).join(' ');
+            
+            try {
+                // 尝试解析JSON值
+                const parsedValue = JSON.parse(value);
+                this.setConfig(param, parsedValue);
+                responseText = `配置已更新: ${param} = ${JSON.stringify(parsedValue)}`;
+            } catch (error) {
+                // 作为字符串处理
+                this.setConfig(param, value);
+                responseText = `配置已更新: ${param} = "${value}"`;
+            }
+        }
+        
+        // 根据消息类型发送回复
+        if (message.message_type === 'group') {
+            await this.api.sendGroupMessage(message.group_id, responseText);
+        } else if (message.message_type === 'private') {
+            await this.api.sendPrivateMessage(message.user_id, responseText);
         }
     }
 
     /**
-     * 处理 @ 消息
+     * 状态命令处理器
      */
-    async handleAtMessage(message) {
-        const { group_id, user_id, raw_message } = message;
+    async handleStatusCommand(context) {
+        const { message } = context;
         
-        // 移除 @ 标签，获取纯文本
-        const cleanMessage = raw_message.replace(/\[CQ:at,qq=\d+\]/g, '').trim();
+        const status = {
+            name: this.name,
+            version: this.version,
+            initialized: this.isInitialized,
+            messageCount: this.messageCount,
+            lastActivity: this.lastActivity ? new Date(this.lastActivity).toLocaleString('zh-CN') : '无',
+            uptime: Math.floor((Date.now() - this.startTime) / 1000) + '秒',
+            memoryUsage: process.memoryUsage()
+        };
         
-        if (cleanMessage.includes('你好') || cleanMessage.includes('hello')) {
-            await this.api.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 你好！我是示例插件，很高兴为您服务！`);
-        } else if (cleanMessage.includes('帮助') || cleanMessage.includes('help')) {
-            await this.sendHelpMessage(message);
+        const statusText = JSON.stringify(status, null, 2);
+        const responseText = `插件状态:\n\`\`\`json\n${statusText}\n\`\`\``;
+        
+        // 根据消息类型发送回复
+        if (message.message_type === 'group') {
+            await this.api.sendGroupMessage(message.group_id, responseText);
+        } else if (message.message_type === 'private') {
+            await this.api.sendPrivateMessage(message.user_id, responseText);
+        }
+    }
+
+    /**
+     * API命令处理器
+     */
+    async handleApiCommand(context) {
+        const { message, args } = context;
+        let responseText = '';
+        
+        if (args.length === 0) {
+            responseText = '请指定API端点，例如: #api /test';
         } else {
-            await this.api.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 我收到了您的消息，但不太理解。请使用 /help 查看可用命令。`);
+            const endpoint = args[0];
+            const config = this.getConfig();
+            const baseUrl = config.api_base_url || 'https://jsonplaceholder.typicode.com';
+            
+            try {
+                const response = await axios.get(`${baseUrl}${endpoint}`, {
+                    timeout: 5000
+                });
+                
+                const data = (typeof response.data === 'object' && response.data !== null) ? 
+                    JSON.stringify(response.data, null, 2) : 
+                    response.data;
+                
+                responseText = `API响应:\n\`\`\`json\n${data}\n\`\`\``;
+                
+            } catch (error) {
+                responseText = `API调用失败: ${error.message}`;
+                this.logger.error('API调用错误:', error);
+            }
+        }
+        
+        // 根据消息类型发送回复
+        if (message.message_type === 'group') {
+            await this.api.sendGroupMessage(message.group_id, responseText);
+        } else if (message.message_type === 'private') {
+            await this.api.sendPrivateMessage(message.user_id, responseText);
         }
     }
 
     /**
-     * 处理签到
+     * 资源命令处理器
      */
-    async handleCheckIn(message) {
-        const { group_id, user_id } = message;
-        const today = new Date().toDateString();
-        const checkInKey = `checkin:${group_id}:${user_id}:${today}`;
+    async handleResourceCommand(context) {
+        const { message, args } = context;
         
-        // 检查今天是否已经签到
-        const hasCheckedIn = await this.getData(checkInKey);
-        if (hasCheckedIn) {
-            await this.api.sendGroupMessage(group_id, `[CQ:at,qq=${user_id}] 您今天已经签到过了！`);
-            return;
+        const filename = args.length > 0 ? args[0] : 'example.txt';
+        const filePath = path.join(this.resourcesPath, filename);
+        let responseText = '';
+        
+        try {
+            const content = await fs.readFile(filePath, 'utf8');
+            responseText = `资源文件内容 (${filename}):\n\`\`\`\n${content}\n\`\`\``;
+        } catch (error) {
+            responseText = `读取资源文件失败: ${error.message}`;
+            this.logger.error('读取资源文件错误:', error);
         }
         
-        // 记录签到
-        await this.setData(checkInKey, true);
-        
-        // 更新用户签到统计
-        const userStatsKey = `user_stats:${user_id}`;
-        const userStats = await this.getData(userStatsKey) || { totalCheckIns: 0, lastCheckIn: null };
-        userStats.totalCheckIns++;
-        userStats.lastCheckIn = Date.now();
-        await this.setData(userStatsKey, userStats);
-        
-        const replyMessage = `[CQ:at,qq=${user_id}] 签到成功！这是您第 ${userStats.totalCheckIns} 次签到。`;
-        await this.api.sendGroupMessage(group_id, replyMessage);
-    }
-
-    /**
-     * 处理好友添加事件
-     */
-    async handleFriendAdd(event) {
-        const { user_id } = event;
-        
-        logger.info(`New friend added: ${user_id}`);
-        
-        // 发送欢迎消息
-        const config = await this.getData('config') || { welcomeMessage: '你好！欢迎使用示例插件！' };
-        const welcomeMessage = `${config.welcomeMessage || '你好！欢迎使用示例插件！'}\n\n` +
-            `我是示例插件，可以为您提供以下服务：\n` +
-            `- 发送 /help 查看所有命令\n` +
-            `- 发送"你好"获得问候\n` +
-            `- 发送"时间"获取当前时间\n` +
-            `- 发送"统计"查看插件统计信息`;
-        
-        // 延迟发送，避免过于突兀
-        setTimeout(async () => {
-            await this.api.sendPrivateMessage(user_id, welcomeMessage);
-        }, 2000);
-    }
-
-    /**
-     * 处理群成员增加事件
-     */
-    async handleGroupIncrease(event) {
-        const { group_id, user_id } = event;
-        
-        logger.info(`New member joined group ${group_id}: ${user_id}`);
-        
-        // 发送欢迎消息
-        const welcomeMessage = `[CQ:at,qq=${user_id}] 欢迎加入群聊！\n` +
-            `我是示例插件，发送 /help 可以查看我的功能。`;
-        
-        // 延迟发送
-        setTimeout(async () => {
-            await this.api.sendGroupMessage(group_id, welcomeMessage);
-        }, 3000);
-    }
-
-    /**
-     * 更新统计数据
-     */
-    async updateStats(type) {
-        const stats = await this.getData('stats') || {
-            totalMessages: 0,
-            privateMessages: 0,
-            groupMessages: 0,
-            commandsExecuted: 0
-        };
-        stats.totalMessages++;
-        if (type) {
-            stats[type]++;
+        // 根据消息类型发送回复
+        if (message.message_type === 'group') {
+            await this.api.sendGroupMessage(message.group_id, responseText);
+        } else if (message.message_type === 'private') {
+            await this.api.sendPrivateMessage(message.user_id, responseText);
         }
-        await this.setData('stats', stats);
     }
 
     /**
-     * 获取统计信息
+     * 消息接收事件处理器
      */
-    async getStats() {
-        const stats = await this.getData('stats') || {
-            totalMessages: 0,
-            privateMessages: 0,
-            groupMessages: 0,
-            commandsExecuted: 0
-        };
-        return {
-            ...stats,
-            uptime: this.getUptime(),
-            currentMessages: this.messageCount
-        };
+    async onMessageReceived(message) {
+        this.messageCount++;
+        this.lastActivity = new Date();
+        
+        // 记录消息统计
+        this.logger.debug(`收到消息 #${this.messageCount}:`, {
+            userId: message.user_id,
+            messageType: message.message_type,
+            timestamp: new Date().toLocaleString('zh-CN')
+        });
     }
 
     /**
-     * 格式化统计信息
+     * 用户加入事件处理器
      */
-    formatStats(stats) {
-        return `📊 示例插件统计信息\n` +
-            `━━━━━━━━━━━━━━━━\n` +
-            `📨 总消息数：${stats.totalMessages}\n` +
-            `👤 私聊消息：${stats.privateMessages}\n` +
-            `👥 群聊消息：${stats.groupMessages}\n` +
-            `⚡ 命令执行：${stats.commandsExecuted}\n` +
-            `⏰ 运行时间：${stats.uptime}\n` +
-            `🔄 当前会话消息：${stats.currentMessages}`;
+    async onUserJoin(event) {
+        const config = this.getConfig();
+        
+        if (config.welcome_enabled) {
+            const welcomeMessage = config.welcome_message || '欢迎新用户！';
+            // 这里可以发送欢迎消息
+            this.logger.info(`用户加入: ${event.user_id}`);
+        }
+    }
+
+    /**
+     * 用户离开事件处理器
+     */
+    async onUserLeave(event) {
+        this.logger.info(`用户离开: ${event.user_id}`);
+    }
+
+    /**
+     * 配置更新事件处理器
+     */
+    async onConfigUpdate(config) {
+        this.logger.info('配置已更新，重新验证配置');
+        this.validateConfig();
+        
+        // 触发配置相关的重新初始化
+        this.emit('plugin.config.updated', {
+            plugin: this.name,
+            config: config
+        });
+    }
+
+    /**
+     * 处理获取配置API请求
+     */
+    async handleGetConfig(req, res) {
+        try {
+            const config = await this.getConfig();
+            res.json({
+                success: true,
+                data: config
+            });
+        } catch (error) {
+            this.logger.error('获取配置失败:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理更新配置API请求
+     */
+    async handleUpdateConfig(req, res) {
+        try {
+            const newConfig = req.body;
+            await this.updateConfig(newConfig);
+            res.json({
+                success: true,
+                message: '配置更新成功'
+            });
+        } catch (error) {
+            this.logger.error('更新配置失败:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理获取状态API请求
+     */
+    async handleGetStatus(req, res) {
+        try {
+            // 从插件管理器获取插件详情，包含启用状态
+            const pluginManager = this.context?.pluginManager;
+            const pluginDetails = pluginManager ? pluginManager.getPluginDetails(this.name) : null;
+            const enabled = pluginDetails ? pluginDetails.config.enabled !== false : true;
+            
+            const status = {
+                name: this.name,
+                version: this.version,
+                description: this.description,
+                enabled: enabled,
+                isInitialized: this.isInitialized,
+                messageCount: this.messageCount,
+                lastActivity: this.lastActivity,
+                uptime: this.getUptime()
+            };
+            res.json({
+                success: true,
+                data: status
+            });
+        } catch (error) {
+            this.logger.error('获取状态失败:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 处理切换插件状态API请求
+     */
+    async handleTogglePlugin(req, res) {
+        console.log('handleTogglePlugin method called - console log');
+        this.logger.info('handleTogglePlugin method called - logger');
+        this.logger.info('this object type:', typeof this);
+        this.logger.info('this.name:', this.name);
+        try {
+            // 通过插件上下文获取插件管理器
+            this.logger.info('this.context:', !!this.context);
+            this.logger.info('this.context keys:', this.context ? Object.keys(this.context) : 'N/A');
+            const pluginManager = this.context?.pluginManager;
+            this.logger.info('pluginManager from context:', !!pluginManager);
+            this.logger.info('pluginManager type:', typeof pluginManager);
+            
+            if (!pluginManager) {
+                throw new Error('插件管理器未初始化');
+            }
+            
+            if (typeof pluginManager.disablePlugin !== 'function') {
+                throw new Error('插件管理器缺少disablePlugin方法');
+            }
+            
+            // 获取当前插件状态
+            const pluginDetails = pluginManager.getPluginDetails(this.name);
+            const currentEnabled = pluginDetails ? pluginDetails.config.enabled !== false : true;
+            
+            // 切换状态
+            if (currentEnabled) {
+                await pluginManager.disablePlugin(this.name);
+            } else {
+                await pluginManager.enablePlugin(this.name);
+            }
+            
+            // 获取新状态
+            const newPluginDetails = pluginManager.getPluginDetails(this.name);
+            const newEnabled = newPluginDetails ? newPluginDetails.config.enabled !== false : true;
+            
+            res.json({
+                success: true,
+                data: {
+                    enabled: newEnabled,
+                    message: newEnabled ? '插件已启用' : '插件已禁用'
+                }
+            });
+            
+            this.logger.info(`插件状态已切换: ${newEnabled ? '启用' : '禁用'}`);
+            
+        } catch (error) {
+            this.logger.error('切换插件状态失败:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
     }
 
     /**
      * 获取运行时间
      */
     getUptime() {
-        const uptime = Date.now() - this.startTime;
-        const hours = Math.floor(uptime / (1000 * 60 * 60));
-        const minutes = Math.floor((uptime % (1000 * 60 * 60)) / (1000 * 60));
-        const seconds = Math.floor((uptime % (1000 * 60)) / 1000);
-        
+        const uptime = process.uptime();
+        const hours = Math.floor(uptime / 3600);
+        const minutes = Math.floor((uptime % 3600) / 60);
+        const seconds = Math.floor(uptime % 60);
         return `${hours}小时${minutes}分钟${seconds}秒`;
-    }
-
-    /**
-     * 定时报告统计信息
-     */
-    async reportStats() {
-        if (!this.isEnabled()) {
-            return;
-        }
-        
-        const config = await this.getData('config');
-        if (!config.enableStats) {
-            return;
-        }
-        
-        const stats = await this.getStats();
-        
-        logger.info('Example plugin stats:', {
-            totalMessages: stats.totalMessages,
-            privateMessages: stats.privateMessages,
-            groupMessages: stats.groupMessages,
-            commandsExecuted: stats.commandsExecuted,
-            uptime: stats.uptime
-        });
-        
-        // 可以选择发送到管理员或特定群组
-        // await this.sendPrivateMessage(adminUserId, this.formatStats(stats));
-    }
-
-    /**
-     * HTTP 路由：获取统计信息
-     */
-    async getStatsRoute(req, res) {
-        try {
-            const stats = await this.getStats();
-            res.json({
-                success: true,
-                data: stats
-            });
-        } catch (error) {
-            logger.error('Error in stats route:', error);
-            res.status(500).json({
-                success: false,
-                error: error.message
-            });
-        }
-    }
-
-    /**
-     * HTTP 路由：发送消息
-     */
-    async sendMessageRoute(req, res) {
-        try {
-            const { type, target, message } = req.body;
-            
-            if (!type || !target || !message) {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Missing required parameters: type, target, message'
-                });
-            }
-            
-            if (type === 'private') {
-                await this.api.sendPrivateMessage(target, message);
-            } else if (type === 'group') {
-                await this.api.sendGroupMessage(target, message);
-            } else {
-                return res.status(400).json({
-                    success: false,
-                    error: 'Invalid message type. Use "private" or "group"'
-                });
-            }
-            
-            res.json({
-                success: true,
-                message: 'Message sent successfully'
-            });
-            
-        } catch (error) {
-            logger.error('Error in send message route:', error);
-            res.status(500).json({
-                success: false,
-                error: error.message
-            });
-        }
     }
 
     /**
      * 插件销毁
      */
-    async destroy() {
-        logger.info('Example plugin is being destroyed');
-        
-        // 保存最终统计数据
-        const finalStats = await this.getStats();
-        logger.info('Final example plugin stats:', finalStats);
-        
-        await super.destroy();
-        
-        this.emit('destroyed');
+    async onDestroy() {
+        try {
+            this.logger.info('示例插件开始销毁...');
+            
+            // 清理资源
+            this.isInitialized = false;
+            this.messageCount = 0;
+            this.lastActivity = null;
+            
+            // 移除事件监听器
+            this.removeAllListeners();
+            
+            this.logger.info('示例插件销毁完成');
+            
+        } catch (error) {
+            this.logger.error('示例插件销毁失败:', error);
+            throw error;
+        }
     }
 
     /**
@@ -569,11 +596,398 @@ class ExamplePlugin extends BasePlugin {
      */
     getInfo() {
         return {
-            ...super.getInfo(),
+            name: this.name,
+            version: this.version,
+            description: this.description,
+            author: 'NoteBot Team',
+            website: 'https://github.com/notebot/example-plugin',
+            initialized: this.isInitialized,
             messageCount: this.messageCount,
-            uptime: this.getUptime(),
-            startTime: this.startTime
+            lastActivity: this.lastActivity,
+            commands: this.getCommands().map(cmd => ({
+                name: cmd.name,
+                description: cmd.description,
+                usage: cmd.usage
+            }))
         };
+    }
+
+    /**
+     * 处理获取默认配置API请求
+     */
+    async handleGetDefaults(req, res) {
+        try {
+            // 返回默认配置
+            const defaultConfig = {
+                settings: {
+                    param1: '默认参数1',
+                    param2: 42,
+                    required_param: '默认必需参数',
+                    greeting: '你好',
+                    timeout: 5000,
+                    api_base_url: 'https://jsonplaceholder.typicode.com',
+                    max_retries: 3,
+                    welcome_message: '欢迎加入我们的群组！',
+                    welcome_enabled: true,
+                    debug_mode: false,
+                    features: {
+                        auto_reply: false,
+                        command_logging: true
+                    },
+                    limits: {
+                        rate_limit: 10
+                    },
+                    ui: {
+                        theme: 'light',
+                        language: 'zh-CN',
+                        show_advanced: false,
+                        auto_save: true
+                    }
+                },
+                commands: [
+                    {
+                        name: 'hello',
+                        description: '发送问候消息',
+                        usage: '#hello [用户名]',
+                        enabled: true,
+                        permission_required: false
+                    },
+                    {
+                        name: 'config',
+                        description: '配置管理命令',
+                        usage: '#config [参数] [值]',
+                        enabled: true,
+                        permission_required: true
+                    },
+                    {
+                        name: 'status',
+                        description: '查看插件状态',
+                        usage: '#status',
+                        enabled: true,
+                        permission_required: false
+                    },
+                    {
+                        name: 'resource',
+                        description: '获取插件资源',
+                        usage: '#resource [文件名]',
+                        enabled: true,
+                        permission_required: false
+                    }
+                ]
+            };
+            
+            res.json({
+                success: true,
+                data: defaultConfig
+            });
+        } catch (error) {
+            this.logger.error('获取默认配置失败:', error);
+            res.status(500).json({
+                success: false,
+                error: error.message
+            });
+        }
+    }
+
+    /**
+     * 生图命令处理器 - 使用Puppeteer模块
+     */
+    async handleScreenshotCommand(context) {
+        const { message, args } = context;
+        
+        if (args.length === 0) {
+            const usage = '用法: #screenshot <url> [width] [height]\n示例: #screenshot https://www.baidu.com 1920 1080';
+            return await this.sendReply(message, usage);
+        }
+        
+        const url = args[0];
+        const width = parseInt(args[1]) || 1920;
+        const height = parseInt(args[2]) || 1080;
+        
+        // 检查Puppeteer是否可用
+        if (!this.isPuppeteerAvailable()) {
+            return await this.sendReply(message, '❌ Puppeteer模块不可用，无法执行截图操作');
+        }
+        
+        // 验证URL格式
+        if (!this.isValidUrl(url)) {
+            return await this.sendReply(message, '❌ 无效的URL格式，请提供有效的网址');
+        }
+        
+        try {
+            await this.sendReply(message, `🔄 正在截图: ${url}...`);
+            
+            // 执行截图操作
+            const screenshotBuffer = await this.puppeteer.screenshot(url, {
+                viewport: { width, height },
+                fullPage: false,
+                type: 'png',
+                timeout: 30000
+            });
+            
+            if (screenshotBuffer) {
+                // 将截图保存到资源目录
+                const timestamp = Date.now();
+                const filename = `screenshot_${timestamp}.png`;
+                const filePath = path.join(this.resourcesPath, filename);
+                
+                await fs.writeFile(filePath, screenshotBuffer);
+                
+                // 发送截图 - 分别发送文本和图片
+                await this.sendReply(message, `✅ 截图完成: ${url}`);
+                
+                // 发送图片 - 使用base64格式
+                const imageBase64 = screenshotBuffer.toString('base64');
+                const imageMessage = `[CQ:image,file=base64://${imageBase64}]`;
+                await this.sendReply(message, imageMessage);
+                
+                this.logger.info(`截图成功: ${url} -> ${filename}`);
+            } else {
+                await this.sendReply(message, `❌ 截图失败: 未获取到截图数据`);
+            }
+            
+        } catch (error) {
+            this.logger.error('截图操作失败:', error);
+            await this.sendReply(message, `❌ 截图操作异常: ${error.message}`);
+        }
+    }
+    
+    /**
+     * 定时任务管理命令处理器
+     */
+    async handleScheduleCommand(context) {
+        const { message, args } = context;
+        
+        if (args.length === 0) {
+            const usage = '用法:\n' +
+                '#schedule list - 查看定时任务列表\n' +
+                '#schedule add <name> <cron> <message> - 添加定时任务\n' +
+                '#schedule remove <name> - 删除定时任务\n' +
+                '#schedule status <name> - 查看任务状态\n\n' +
+                'Cron表达式示例:\n' +
+                '"0 9 * * *" - 每天9点\n' +
+                '"*/30 * * * *" - 每30分钟\n' +
+                '"0 0 * * 1" - 每周一0点';
+            return await this.sendReply(message, usage);
+        }
+        
+        const action = args[0].toLowerCase();
+        
+        try {
+            switch (action) {
+                case 'list':
+                    await this.handleScheduleList(message);
+                    break;
+                    
+                case 'add':
+                    if (args.length < 4) {
+                        return await this.sendReply(message, '❌ 参数不足，用法: #schedule add <name> <cron> <message>');
+                    }
+                    await this.handleScheduleAdd(message, args[1], args[2], args.slice(3).join(' '));
+                    break;
+                    
+                case 'remove':
+                    if (args.length < 2) {
+                        return await this.sendReply(message, '❌ 参数不足，用法: #schedule remove <name>');
+                    }
+                    await this.handleScheduleRemove(message, args[1]);
+                    break;
+                    
+                case 'status':
+                    if (args.length < 2) {
+                        return await this.sendReply(message, '❌ 参数不足，用法: #schedule status <name>');
+                    }
+                    await this.handleScheduleStatus(message, args[1]);
+                    break;
+                    
+                default:
+                    await this.sendReply(message, '❌ 未知操作，支持的操作: list, add, remove, status');
+            }
+        } catch (error) {
+            this.logger.error('定时任务操作失败:', error);
+            await this.sendReply(message, `❌ 操作失败: ${error.message}`);
+        }
+    }
+    
+    /**
+     * 查看定时任务列表
+     */
+    async handleScheduleList(message) {
+        const tasks = await this.getData('scheduled_tasks', {});
+        const taskNames = Object.keys(tasks);
+        
+        if (taskNames.length === 0) {
+            return await this.sendReply(message, '📋 当前没有定时任务');
+        }
+        
+        let listMessage = '📋 定时任务列表:\n\n';
+        for (const name of taskNames) {
+            const task = tasks[name];
+            listMessage += `🔹 ${name}\n`;
+            listMessage += `   Cron: ${task.cron}\n`;
+            listMessage += `   消息: ${task.message}\n`;
+            listMessage += `   状态: ${task.enabled ? '✅ 启用' : '❌ 禁用'}\n`;
+            listMessage += `   创建时间: ${new Date(task.createdAt).toLocaleString('zh-CN')}\n\n`;
+        }
+        
+        await this.sendReply(message, listMessage);
+    }
+    
+    /**
+     * 添加定时任务
+     */
+    async handleScheduleAdd(message, name, cronExpression, taskMessage) {
+        // 验证cron表达式
+        const cron = require('node-cron');
+        if (!cron.validate(cronExpression)) {
+            return await this.sendReply(message, '❌ 无效的Cron表达式');
+        }
+        
+        const tasks = await this.getData('scheduled_tasks', {});
+        
+        if (tasks[name]) {
+            return await this.sendReply(message, `❌ 任务 "${name}" 已存在`);
+        }
+        
+        // 创建任务处理器
+        const taskHandler = async () => {
+            try {
+                // 发送定时消息到当前群组或私聊
+                if (message.message_type === 'group') {
+                    await this.api.sendGroupMessage(message.group_id, `⏰ 定时任务 "${name}": ${taskMessage}`);
+                } else {
+                    await this.api.sendPrivateMessage(message.user_id, `⏰ 定时任务 "${name}": ${taskMessage}`);
+                }
+                
+                this.logger.info(`定时任务执行: ${name}`);
+            } catch (error) {
+                this.logger.error(`定时任务执行失败 [${name}]:`, error);
+            }
+        };
+        
+        // 注册到调度器
+        const taskId = `${this.name}_${name}`;
+        await global.taskScheduler.register(taskId, cronExpression, taskHandler, {
+            name: `${this.name}:${name}`,
+            description: `范例插件定时任务: ${name}`,
+            plugin: this.name
+        });
+        
+        // 保存任务信息
+        tasks[name] = {
+            id: taskId,
+            cron: cronExpression,
+            message: taskMessage,
+            enabled: true,
+            createdAt: Date.now(),
+            groupId: message.group_id,
+            userId: message.user_id,
+            messageType: message.message_type
+        };
+        
+        await this.setData('scheduled_tasks', tasks);
+        
+        await this.sendReply(message, `✅ 定时任务 "${name}" 添加成功\nCron: ${cronExpression}\n消息: ${taskMessage}`);
+        this.logger.info(`添加定时任务: ${name} (${cronExpression})`);
+    }
+    
+    /**
+     * 删除定时任务
+     */
+    async handleScheduleRemove(message, name) {
+        const tasks = await this.getData('scheduled_tasks', {});
+        
+        if (!tasks[name]) {
+            return await this.sendReply(message, `❌ 任务 "${name}" 不存在`);
+        }
+        
+        const task = tasks[name];
+        
+        // 从调度器中注销任务
+        try {
+            await global.taskScheduler.unregister(task.id);
+        } catch (error) {
+            this.logger.warn(`注销定时任务失败 [${name}]:`, error);
+        }
+        
+        // 删除任务信息
+        delete tasks[name];
+        await this.setData('scheduled_tasks', tasks);
+        
+        await this.sendReply(message, `✅ 定时任务 "${name}" 已删除`);
+        this.logger.info(`删除定时任务: ${name}`);
+    }
+    
+    /**
+     * 查看任务状态
+     */
+    async handleScheduleStatus(message, name) {
+        const tasks = await this.getData('scheduled_tasks', {});
+        
+        if (!tasks[name]) {
+            return await this.sendReply(message, `❌ 任务 "${name}" 不存在`);
+        }
+        
+        const task = tasks[name];
+        
+        // 获取调度器中的任务状态
+        let schedulerStatus = null;
+        try {
+            schedulerStatus = await global.taskScheduler.getTaskStatus(task.id);
+        } catch (error) {
+            this.logger.warn(`获取任务状态失败 [${name}]:`, error);
+        }
+        
+        let statusMessage = `📊 任务状态: ${name}\n\n`;
+        statusMessage += `🔹 Cron表达式: ${task.cron}\n`;
+        statusMessage += `🔹 消息内容: ${task.message}\n`;
+        statusMessage += `🔹 本地状态: ${task.enabled ? '✅ 启用' : '❌ 禁用'}\n`;
+        statusMessage += `🔹 创建时间: ${new Date(task.createdAt).toLocaleString('zh-CN')}\n`;
+        
+        if (schedulerStatus) {
+            statusMessage += `🔹 调度器状态: ${schedulerStatus.enabled ? '✅ 运行中' : '❌ 已停止'}\n`;
+            statusMessage += `🔹 执行次数: ${schedulerStatus.runCount || 0}\n`;
+            statusMessage += `🔹 成功次数: ${schedulerStatus.successCount || 0}\n`;
+            statusMessage += `🔹 失败次数: ${schedulerStatus.failureCount || 0}\n`;
+            if (schedulerStatus.lastRun) {
+                statusMessage += `🔹 上次执行: ${new Date(schedulerStatus.lastRun).toLocaleString('zh-CN')}\n`;
+            }
+            if (schedulerStatus.nextRun) {
+                statusMessage += `🔹 下次执行: ${new Date(schedulerStatus.nextRun).toLocaleString('zh-CN')}\n`;
+            }
+        } else {
+            statusMessage += `🔹 调度器状态: ❓ 无法获取\n`;
+        }
+        
+        await this.sendReply(message, statusMessage);
+    }
+    
+    /**
+     * 发送回复消息的辅助方法
+     */
+    async sendReply(message, content) {
+        try {
+            if (message.message_type === 'group') {
+                await this.api.sendGroupMessage(message.group_id, content);
+            } else if (message.message_type === 'private') {
+                await this.api.sendPrivateMessage(message.user_id, content);
+            }
+        } catch (error) {
+            this.logger.error('发送消息失败:', error);
+            throw new Error(`API 调用失败: ${error.message}`);
+        }
+    }
+    
+    /**
+     * 验证URL格式
+     */
+    isValidUrl(string) {
+        try {
+            new URL(string);
+            return true;
+        } catch (_) {
+            return false;
+        }
     }
 }
 
